@@ -1,3 +1,7 @@
+import logging
+import pickle
+
+from scipy.io import mmwrite, mmread
 from scipy.sparse import csr_matrix
 
 from data_tools.movielens import get_movies_df, get_tags_df
@@ -23,7 +27,8 @@ class ItemFeatureData(object):
         return item_vec
 
     @staticmethod
-    def load(movie_csv_path, tag_csv_path):
+    def create(movie_csv_path, tag_csv_path):
+        logging.info("Creating item-feature data")
         feature_to_col = {}
         iid_to_row = {}
 
@@ -31,6 +36,7 @@ class ItemFeatureData(object):
         rows = []
         data = []
 
+        logging.info("Collecting data about genres")
         df = get_movies_df(movie_csv_path)
         for t in df.itertuples():
             genres = t.genres.split("|")
@@ -43,6 +49,7 @@ class ItemFeatureData(object):
                     cols.append(col_id)
                     data.append(1)
 
+        logging.info("Collecting data about tags")
         df = get_tags_df(tag_csv_path)
         for t in df.itertuples():
             row_id = iid_to_row.setdefault(t.movieId, len(iid_to_row))
@@ -53,4 +60,32 @@ class ItemFeatureData(object):
             data.append(float(t.relevance))
 
         m = csr_matrix((data, (rows, cols)))
+        logging.info("Item-feature data has been created")
         return ItemFeatureData(m, iid_to_row, feature_to_col)
+
+    def save(self, pkl_path):
+        logging.info("Dumping item-feature data")
+        data = {
+            "iid_to_row": self.iid_to_row,
+            "feature_to_col": self.feature_to_col,
+        }
+
+        with open(pkl_path, "wb") as f:
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        logging.info("Pickle data has been dumped")
+
+        matrix_path = pkl_path + ".mtx"
+        mmwrite(matrix_path, self.m)
+        logging.info("Item-feature matrix has been dumped")
+
+    @staticmethod
+    def load(pkl_path):
+        logging.info("Loading item-feature data")
+        with open(pkl_path, "rb") as f:
+            data = pickle.load(f)
+        logging.info("Pickle data has been loaded")
+
+        matrix_path = pkl_path + ".mtx"
+        m = mmread(matrix_path).tocsr()
+        logging.info("Item-feature matrix has been loaded")
+        return ItemFeatureData(m, **data)
