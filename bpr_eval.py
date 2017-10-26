@@ -1,11 +1,11 @@
 import logging
+import sys
 
 import pandas as pd
-import sys
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
-from pw_data_functions import normailze_uids_and_iids, read_pw_data_as_X_and_y
+from data_functions.pairwise import normailze_uids_and_iids, read_pw_data_as_X_and_y
 from tf_bpr import TFBPR
 
 

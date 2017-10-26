@@ -7,7 +7,7 @@ import csv
 import logging
 import sys
 
-from ml_data_functions import get_ratings_df
+from data_functions.movielens import get_ratings_df
 
 
 def clean_df(df):
