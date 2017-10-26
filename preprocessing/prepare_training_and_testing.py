@@ -32,9 +32,11 @@ def get_training_and_testing_dfs():
     testing_df = clean_df(testing_df)
 
     # removing users to whom we can't recommend anything
-    testing_df = testing_df[testing_df.userId.isin(training_df.userId)]
     # removing items about which we don't have training data (for simple BPR)
-    testing_df = testing_df[testing_df.movieId.isin(training_df.movieId)]
+    testing_df = testing_df[
+        testing_df.userId.isin(training_df.userId) &
+        testing_df.movieId.isin(training_df.movieId)
+    ]
 
     logging.info("Training and testing shapes after cleaning: %s, %s", training_df.shape, testing_df.shape)
     return training_df, testing_df
