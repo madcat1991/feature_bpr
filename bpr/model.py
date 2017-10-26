@@ -50,17 +50,11 @@ class BPR(BaseEstimator, RegressorMixin):
         q_i = tf.nn.embedding_lookup(q, iids_i)
         q_j = tf.nn.embedding_lookup(q, iids_j)
 
-        with tf.name_scope("parts"):
-            pu_qi = tf.reduce_sum(np.multiply(p_u, q_i), axis=1, name="pu_qi")
-            pu_qj = tf.reduce_sum(np.multiply(p_u, q_j), axis=1, name="pu_qj")
-
         with tf.name_scope("computation"):
             # x_ui - x_uj = p_u.q_i - p_u.q_j = p_u.(q_i - q_j)
-            # sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
-            # dot = tf.reduce_sum(np.multiply(p_u, sub_ij), axis=1, name="dot")
-            sub = tf.subtract(pu_qi, pu_qj, name='sub')
-            sigma = tf.sigmoid(sub, name="sigma")
-            # sigma = tf.sigmoid(dot, name="sigma")
+            sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
+            dot = tf.reduce_sum(np.multiply(p_u, sub_ij), axis=1, name="dot")
+            sigma = tf.sigmoid(dot, name="sigma")
             gain = tf.reduce_sum(tf.log(sigma), name="gain")
 
         with tf.name_scope("auc"):
