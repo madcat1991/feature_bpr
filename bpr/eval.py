@@ -1,4 +1,5 @@
-"""This script evaluates the BPR model
+"""
+This script evaluates the BPR model
 """
 
 import argparse
@@ -12,29 +13,29 @@ from bpr.model import BPR
 from data_tools.pairwise import normailze_uids_and_iids
 
 
-def load_data(csv_path, uid_cat=None, iid_cat=None):
+def load_data(csv_path, uid_idx=None, iid_idx=None):
+    logging.info("Loading pairwise data from: %s", csv_path)
     pw_df = pd.read_csv(csv_path)
-    if uid_cat and iid_cat:
-        pw_df, _, _ = normailze_uids_and_iids(pw_df, uid_cat, iid_cat)
+    if uid_idx and iid_idx:
+        pw_df, _, _ = normailze_uids_and_iids(pw_df, uid_idx, iid_idx)
     else:
-        pw_df, uid_cat, iid_cat = normailze_uids_and_iids(pw_df)
-    return pw_df.values, uid_cat, iid_cat
+        pw_df, uid_idx, iid_idx = normailze_uids_and_iids(pw_df)
+    return pw_df.values, uid_idx, iid_idx
 
 
 def main():
     logging.info("Loading training data")
-    X, uid_cat, iid_cat = load_data(args.training_csv)
+    X, uid_idx, iid_idx = load_data(args.training_csv)
 
-    n_users = uid_cat.categories.size
-    n_items = iid_cat.categories.size
-    random_state = 42
+    n_users = len(uid_idx)
+    n_items = len(iid_idx)
 
     param_grid = {
-        "n_epochs": [10],
-        "n_factors": [50],
-        "lambda_": [0.001],
+        "n_epochs": [5],
+        "n_factors": [10],
+        "lambda_": [0.01],
         "learning_rate": [0.01],
-        "random_state": [random_state],
+        "random_state": [args.random_state],
         "batch_size": [10000],
     }
 
@@ -44,7 +45,7 @@ def main():
         logging.info("Evaluating params: %s", params)
         bpr = BPR(n_users, n_items, **params)
 
-        splitter = ShuffleSplit(n_splits=5, random_state=random_state)
+        splitter = ShuffleSplit(n_splits=5, random_state=args.random_state)
         aucs = []
         for train_ids, valid_ids in splitter.split(X):
             bpr.fit(X[train_ids])
@@ -61,10 +62,9 @@ def main():
     bpr = BPR(n_users, n_items, **best_params)
     bpr.fit(X)
 
-    logging.info("Loading testing data")
-    X_test, _, _ = load_data(args.testing_csv, uid_cat, iid_cat)
-    auc = bpr.get_auc(X_test)
+    X_test, _, _ = load_data(args.testing_csv, uid_idx, iid_idx)
 
+    auc = bpr.get_auc(X_test)
     logging.info("Test AUC: %.3f", auc)
 
 
@@ -74,6 +74,7 @@ if __name__ == '__main__':
                         help='Path to the pairwise training data')
     parser.add_argument('--ts', dest="testing_csv", required=True,
                         help='Path to the pairwise testing data')
+    parser.add_argument('--rs', dest="random_state", type=int, default=42, help='Random state. Default: 42')
     parser.add_argument("--log-level", default='INFO', dest="log_level",
                         choices=['DEBUG', 'INFO', 'WARNINGS', 'ERROR'], help="Logging level")
     args = parser.parse_args()
