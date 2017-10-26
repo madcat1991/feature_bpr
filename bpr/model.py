@@ -2,15 +2,16 @@ import numpy as np
 import tensorflow as tf
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.exceptions import NotFittedError
-from sklearn.metrics import roc_auc_score
 
 
-class TFBPR(BaseEstimator, RegressorMixin):
-    def __init__(self, n_users, n_items, n_factors, lambda_, batch_size=1000, learning_rate=0.001, random_state=None):
+class BPR(BaseEstimator, RegressorMixin):
+    def __init__(self, n_users, n_items, n_factors=10, lambda_=0.01, n_epochs=20, batch_size=1000,
+                 learning_rate=0.001, random_state=None):
         self.n_users = n_users
         self.n_items = n_items
         self.n_factors = n_factors
         self.lambda_ = lambda_
+        self.n_epochs = n_epochs
         self.learning_rate = learning_rate
         self.random_state = random_state
         self.batch_size = batch_size
@@ -28,9 +29,6 @@ class TFBPR(BaseEstimator, RegressorMixin):
 
         # uid, iid_i, iid_j
         X = tf.placeholder(tf.int32, shape=(None, 3), name="X")
-        # {-1, 1}
-        y = tf.placeholder(tf.float32, shape=(None,), name="y")
-
         uids, iids_i, iids_j = tf.unstack(X, axis=1)
 
         p = tf.get_variable(
@@ -52,28 +50,41 @@ class TFBPR(BaseEstimator, RegressorMixin):
         q_i = tf.nn.embedding_lookup(q, iids_i)
         q_j = tf.nn.embedding_lookup(q, iids_j)
 
+        with tf.name_scope("parts"):
+            pu_qi = tf.reduce_sum(np.multiply(p_u, q_i), axis=1, name="pu_qi")
+            pu_qj = tf.reduce_sum(np.multiply(p_u, q_j), axis=1, name="pu_qj")
+
         with tf.name_scope("computation"):
             # x_ui - x_uj = p_u.q_i - p_u.q_j = p_u.(q_i - q_j)
-            sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
-            mult = tf.multiply(p_u, sub_ij, name="mult")
-            dot = tf.reduce_sum(mult, axis=1, name="dot")
-            sigma = tf.sigmoid(dot, name="sigma")
-            ln = tf.log(sigma, name="ln")
-            ln_sum = tf.reduce_sum(ln)
+            # sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
+            # dot = tf.reduce_sum(np.multiply(p_u, sub_ij), axis=1, name="dot")
+            sub = tf.subtract(pu_qi, pu_qj, name='sub')
+            sigma = tf.sigmoid(sub, name="sigma")
+            # sigma = tf.sigmoid(dot, name="sigma")
+            gain = tf.reduce_sum(tf.log(sigma), name="gain")
+
+        with tf.name_scope("auc"):
+            _, indices = tf.nn.top_k(-uids, k=tf.shape(uids)[0])
+            ordered_uids = tf.gather(uids, indices)
+            ordered_sigma = tf.gather(sigma, indices)
+            avg_sigma_by_uid = tf.segment_mean(ordered_sigma, ordered_uids)
+            n_users = tf.count_nonzero(avg_sigma_by_uid, dtype=tf.float32)
+            auc = tf.divide(tf.reduce_sum(avg_sigma_by_uid), n_users, name="auc")
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        training_op = optimizer.minimize(-ln_sum)
+        training_op = optimizer.minimize(-gain)
 
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
         # Make the important operations available easily through instance variables
-        self._X, self._y = X, y
-        self._y_pred, self._ln_sum = sigma, ln_sum
+        self._X = X
+        self._y_pred, self._gain = sigma, gain
+        self._auc = auc
         self._training_op = training_op
         self._init, self._saver = init, saver
 
-    def fit(self, X, y, n_epochs):
+    def fit(self, X):
         self.close_session()
 
         self._graph = tf.Graph()
@@ -84,17 +95,14 @@ class TFBPR(BaseEstimator, RegressorMixin):
         with self._session.as_default() as sess:
             self._init.run()
 
-            for epoch in range(n_epochs):
+            for epoch in range(self.n_epochs):
                 rnd_idx = np.random.permutation(len(X))
                 for i, rnd_indices in enumerate(np.array_split(rnd_idx, len(X) // self.batch_size)):
-                    X_batch, y_batch = X[rnd_indices], y[rnd_indices]
-                    feed_dict = {self._X: X_batch, self._y: y_batch}
-                    sess.run(self._training_op, feed_dict=feed_dict)
+                    X_batch = X[rnd_indices]
+                    sess.run(self._training_op, feed_dict={self._X: X_batch})
 
-                ln_sum, y_pred = \
-                    sess.run([self._ln_sum, self._y_pred], feed_dict={self._X: X_batch, self._y: y_batch})
-                auc = roc_auc_score(y_batch, y_pred)
-                print("%s.\tLast training batch: ln_sum=%.3f, auc=%.3f" % (epoch, ln_sum, auc))
+                gain, auc = sess.run([self._gain, self._auc], feed_dict={self._X: X_batch})
+                print("%s.\tLast training batch: gain=%.3f, auc=%.3f" % (epoch, gain, auc))
 
     def save(self, path):
         self._saver.save(self._session, path)
@@ -102,5 +110,11 @@ class TFBPR(BaseEstimator, RegressorMixin):
     def predict(self, X):
         if not self._session:
             raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
-        with self._session.as_default() as sess:
+        with self._session.as_default():
             return self._y_pred.eval(feed_dict={self._X: X})
+
+    def get_auc(self, X):
+        if not self._session:
+            raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
+        with self._session.as_default():
+            return self._auc.eval(feed_dict={self._X: X})
