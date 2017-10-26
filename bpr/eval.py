@@ -9,7 +9,7 @@ import pandas as pd
 from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
 from bpr.model import BPR
-from data_functions.pairwise import normailze_uids_and_iids
+from data_tools.pairwise import normailze_uids_and_iids
 
 
 def load_data(csv_path, uid_cat=None, iid_cat=None):
