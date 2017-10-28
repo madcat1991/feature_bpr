@@ -7,22 +7,15 @@ import logging
 import sys
 
 import numpy as np
-import pandas as pd
-from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
-from bpr.eval import load_data
-from f_pw.eval import sample_negative
+from common import find_best_params, sample_negative, load_data
 from metrics import accuracy_score_avg_by_users
 from pw.model import PWClassifier
 
 
 def main():
-    logging.info("Loading training data")
     X, uid_idx, iid_idx = load_data(args.training_csv)
     X, y = sample_negative(X)
-
-    n_users = len(uid_idx)
-    n_items = len(iid_idx)
 
     param_grid = {
         "n_epochs": [3],
@@ -31,31 +24,14 @@ def main():
         "learning_rate": [0.01],
         "random_state": [args.random_state],
         "batch_size": [10000],
+        "n_users": [len(uid_idx)],
+        "n_items": [len(iid_idx)]
     }
 
-    logging.info("Starting grid search")
-    best_params = best_auc = None
-    for params in ParameterGrid(param_grid):
-        logging.info("Evaluating params: %s", params)
-        pw = PWClassifier(n_users, n_items, **params)
-
-        splitter = ShuffleSplit(n_splits=1, test_size=args.test_size, random_state=args.random_state)
-        accs = []
-        for train_ids, valid_ids in splitter.split(X):
-            pw.fit(X[train_ids], y[train_ids])
-
-            X_valid, y_valid = X[valid_ids], y[valid_ids]
-            acc = accuracy_score_avg_by_users(y_valid, pw.predict(X_valid), X_valid[:, 0].reshape(-1))
-            accs.append(acc)
-
-        acc = pd.np.mean(accs)
-        if best_auc is None or best_auc < acc:
-            best_params = params
-            best_auc = acc
-            logging.info("Best accuracy=%.3f, params: %s", acc, params)
+    best_params = find_best_params(X, y, PWClassifier, param_grid, args.test_size, random_state=args.random_state)
 
     logging.info("Training final pw, params: %s", best_params)
-    pw = PWClassifier(n_users, n_items, **best_params)
+    pw = PWClassifier(**best_params)
     pw.fit(X, y)
 
     X_test, _, _ = load_data(args.testing_csv, uid_idx, iid_idx)

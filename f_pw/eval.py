@@ -6,44 +6,17 @@ import logging
 import sys
 
 import numpy as np
-import os
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
-from bpr.eval import load_data
-from data_tools.provider import ItemFeatureData
+from common import load_data, sample_negative
+from data_tools.provider import get_item_feature_data
 from f_pw.model import FPWClassifier
 
 
-def sample_negative(X, neg_p=0.5):
-    size = int(X.shape[0] * neg_p)
-    idx = np.random.choice(X.shape[0], size, False)
-
-    # swapping negatives
-    neg_X = X[idx]
-    neg_X[:, [1, 2]] = neg_X[:, [2, 1]]
-    X[idx] = neg_X
-
-    y = np.ones(X.shape[0])
-    y[idx] = 0
-    return X, y
-
-
-def get_item_feature_data():
-    if os.path.exists(args.pkl_data):
-        ifd = ItemFeatureData.load(args.pkl_data)
-    elif args.movie_csv is None or args.tag_csv is None:
-        raise Exception("There is no dumped item-feature data, please specify movie_csv and tag_csv")
-    else:
-        ifd = ItemFeatureData.create(args.movie_csv, args.tag_csv)
-        ifd.save(args.pkl_data)
-    logging.info("Item-feature data: %s", ifd.info())
-    return ifd
-
-
 def main():
-    ifd = get_item_feature_data()
+    ifd = get_item_feature_data(args.pkl_data, args.movie_csv, args.tag_csv)
     item_feature_m = ifd.m.todense()
 
     X, uid_idx, _ = load_data(args.training_csv, iid_idx=ifd.iid_to_row)
@@ -65,9 +38,6 @@ def main():
     logging.info("Starting grid search")
     best_params = best_auc = None
     for params in ParameterGrid(param_grid):
-        best_params = params
-        break
-
         logging.info("Evaluating params: %s", params)
         bpr = FPWClassifier(n_users, n_items, n_features, **params)
 

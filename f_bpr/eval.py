@@ -6,29 +6,16 @@ import logging
 import sys
 
 import numpy as np
-import os
 import pandas as pd
 from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
-from bpr.eval import load_data
-from data_tools.provider import ItemFeatureData
+from common import load_data
+from data_tools.provider import get_item_feature_data
 from f_bpr.model import FeatureBPR
 
 
-def get_item_feature_data():
-    if os.path.exists(args.pkl_data):
-        ifd = ItemFeatureData.load(args.pkl_data)
-    elif args.movie_csv is None or args.tag_csv is None:
-        raise Exception("There is no dumped item-feature data, please specify movie_csv and tag_csv")
-    else:
-        ifd = ItemFeatureData.create(args.movie_csv, args.tag_csv)
-        ifd.save(args.pkl_data)
-    logging.info("Item-feature data: %s", ifd.info())
-    return ifd
-
-
 def main():
-    ifd = get_item_feature_data()
+    ifd = get_item_feature_data(args.pkl_data, args.movie_csv, args.tag_csv)
     X, uid_idx, _ = load_data(args.training_csv, iid_idx=ifd.iid_to_row)
     item_feature_m = ifd.m.todense()
 

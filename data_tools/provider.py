@@ -1,4 +1,5 @@
 import logging
+import os
 import pickle
 
 from scipy.io import mmwrite, mmread
@@ -89,3 +90,15 @@ class ItemFeatureData(object):
         m = mmread(matrix_path).tocsr()
         logging.info("Item-feature matrix has been loaded")
         return ItemFeatureData(m, **data)
+
+
+def get_item_feature_data(pkl_data, movie_csv=None, tag_csv=None):
+    if os.path.exists(pkl_data):
+        ifd = ItemFeatureData.load(pkl_data)
+    elif movie_csv is None or tag_csv is None:
+        raise Exception("There is no dumped item-feature data, please specify movie_csv and tag_csv")
+    else:
+        ifd = ItemFeatureData.create(movie_csv, tag_csv)
+        ifd.save(pkl_data)
+    logging.info("Item-feature data: %s", ifd.info())
+    return ifd

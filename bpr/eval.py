@@ -11,21 +11,10 @@ import pandas as pd
 from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
 from bpr.model import BPR
-from data_tools.pairwise import normailze_uids_and_iids
-
-
-def load_data(csv_path, uid_idx=None, iid_idx=None):
-    logging.info("Loading pairwise data from: %s", csv_path)
-    pw_df = pd.read_csv(csv_path)
-    if uid_idx and iid_idx:
-        pw_df, _, _ = normailze_uids_and_iids(pw_df, uid_idx, iid_idx)
-    else:
-        pw_df, uid_idx, iid_idx = normailze_uids_and_iids(pw_df)
-    return pw_df.values, uid_idx, iid_idx
+from common import load_data
 
 
 def main():
-    logging.info("Loading training data")
     X, uid_idx, iid_idx = load_data(args.training_csv)
 
     n_users = len(uid_idx)
