@@ -28,6 +28,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         # input
         X = tf.placeholder(tf.int32, shape=(None, 3), name="X")
         y = tf.placeholder(tf.float32, shape=(None,), name="y")
+        training = tf.placeholder_with_default(False, shape=(), name='training')
 
         # the graph should be here
 
@@ -37,6 +38,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
 
         # Make the important operations available easily through instance variables
         self._X, self._y = X, y
+        self._training = training
         self._loss = None
         self._y_prob = None
         self._y_predicted = None
@@ -58,7 +60,10 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
                 rnd_idx = np.random.permutation(len(X))
                 for i, rnd_indices in enumerate(np.array_split(rnd_idx, len(X) // self.batch_size)):
                     X_batch, y_batch = X[rnd_indices], y[rnd_indices]
-                    sess.run(self._training_op, feed_dict={self._X: X_batch, self._y: y_batch})
+                    sess.run(
+                        self._training_op,
+                        feed_dict={self._X: X_batch, self._y: y_batch, self._training: True}
+                    )
 
                 loss, y_pred = sess.run(
                     [self._loss, self._y_predicted],

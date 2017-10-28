@@ -22,6 +22,7 @@ class FPWClassifier(BasePWClassifier):
         uids, iids_i, iids_j = tf.unstack(X, axis=1)
 
         y = tf.placeholder(tf.float32, shape=(None,), name="y")
+        training = tf.placeholder_with_default(False, shape=(), name='training')
 
         # item-feature matrix
         if_m = tf.constant(item_feature_m, tf.float32, name="if_m")

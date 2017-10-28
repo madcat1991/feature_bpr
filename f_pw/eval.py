@@ -21,10 +21,10 @@ def main():
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [5],
+        "n_epochs": [3],
         "n_factors": [5, 10],
-        "lambda_": [0.1, 0.01],
-        "learning_rate": [0.01, 0.001],
+        "lambda_": [0.1],
+        "learning_rate": [0.01],
         "random_state": [args.random_state],
         "batch_size": [10000],
         "n_users": [len(uid_idx)],
