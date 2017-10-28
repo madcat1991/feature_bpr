@@ -2,7 +2,8 @@ import numpy as np
 import tensorflow as tf
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.exceptions import NotFittedError
-from sklearn.metrics import roc_auc_score
+
+from metrics import accuracy_score_avg_by_users
 
 
 class PWClassifier(BaseEstimator, ClassifierMixin):
@@ -57,9 +58,10 @@ class PWClassifier(BaseEstimator, ClassifierMixin):
             # x_ui - x_uj = p_u.q_i - p_u.q_j = p_u.(q_i - q_j)
             sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
             dot = tf.reduce_sum(np.multiply(p_u, sub_ij), axis=1, name="dot")
-            prediction = tf.sigmoid(dot, name="prediction")
+            sigma = tf.sigmoid(dot, name="sigma")
+            prediction = tf.round(sigma)
 
-        x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=prediction)
+        x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=sigma)
         loss = tf.reduce_sum(x_entropy, name="loss")
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
@@ -71,7 +73,8 @@ class PWClassifier(BaseEstimator, ClassifierMixin):
         # Make the important operations available easily through instance variables
         self._X, self._y = X, y
         self._loss = loss
-        self._y_pred = prediction
+        self._y_prob = sigma
+        self._y_predicted = prediction
         self._training_op = training_op
         self._init, self._saver = init, saver
 
@@ -93,11 +96,11 @@ class PWClassifier(BaseEstimator, ClassifierMixin):
                     sess.run(self._training_op, feed_dict={self._X: X_batch, self._y: y_batch})
 
                 loss, y_pred = sess.run(
-                    [self._loss, self._y_pred],
+                    [self._loss, self._y_predicted],
                     feed_dict={self._X: X_batch, self._y: y_batch}
                 )
-                auc = roc_auc_score(y_batch, y_pred)
-                print("%3s. Last training batch: loss=%.3f, auc=%.3f" % (epoch, loss, auc))
+                acc = accuracy_score_avg_by_users(y_batch, y_pred, X_batch[:, 0].reshape(-1))
+                print("%3s. Last training batch: loss=%.3f, accuracy=%.3f" % (epoch, loss, acc))
 
     def save(self, path):
         self._saver.save(self._session, path)
@@ -106,4 +109,10 @@ class PWClassifier(BaseEstimator, ClassifierMixin):
         if not self._session:
             raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
         with self._session.as_default():
-            return self._y_pred.eval(feed_dict={self._X: X})
+            return self._y_predicted.eval(feed_dict={self._X: X})
+
+    def predict_proba(self, X):
+        if not self._session:
+            raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
+        with self._session.as_default():
+            return self._y_prob.eval(feed_dict={self._X: X})
