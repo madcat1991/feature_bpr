@@ -6,13 +6,11 @@ import logging
 import sys
 
 import numpy as np
-import pandas as pd
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
-from common import load_data, sample_negative
+from common import load_data, sample_negative, find_best_params
 from data_tools.provider import get_item_feature_data
 from f_pw.model import FPWClassifier
+from metrics import accuracy_score_avg_by_users
 
 
 def main():
@@ -22,47 +20,33 @@ def main():
     X, uid_idx, _ = load_data(args.training_csv, iid_idx=ifd.iid_to_row)
     X, y = sample_negative(X)
 
-    n_users = len(uid_idx)
-    n_items = len(ifd.iid_to_row)
-    n_features = len(ifd.feature_to_col)
-
     param_grid = {
         "n_epochs": [5],
-        "n_factors": [20],
-        "lambda_": [0.01],
-        "learning_rate": [0.01],
+        "n_factors": [5, 10],
+        "lambda_": [0.1, 0.01],
+        "learning_rate": [0.01, 0.001],
         "random_state": [args.random_state],
         "batch_size": [10000],
+        "n_users": [len(uid_idx)],
+        "n_items": [len(ifd.iid_to_row)],
+        "n_features": [len(ifd.feature_to_col)]
     }
 
-    logging.info("Starting grid search")
-    best_params = best_auc = None
-    for params in ParameterGrid(param_grid):
-        logging.info("Evaluating params: %s", params)
-        bpr = FPWClassifier(n_users, n_items, n_features, **params)
+    best_params = find_best_params(
+        X, y, FPWClassifier, param_grid, args.test_size, random_state=args.random_state,
+        item_feature_m=item_feature_m
+    )
 
-        aucs = []
-        splitter = ShuffleSplit(n_splits=1, test_size=args.test_size, random_state=args.random_state)
-        for train_ids, valid_ids in splitter.split(X):
-            bpr.fit(X[train_ids], y[train_ids], item_feature_m)
-            aucs.append(roc_auc_score(y[valid_ids], bpr.predict(X[valid_ids])))
-
-        auc = pd.np.mean(aucs)
-        if best_auc is None or best_auc < auc:
-            best_params = params
-            best_auc = auc
-            logging.info("Best AUC=%.3f, params: %s", auc, params)
-
-    logging.info("Training final bpr, params: %s", best_params)
-    bpr = FPWClassifier(n_users, n_items, n_features, **best_params)
-    bpr.fit(X, y, item_feature_m)
+    logging.info("Training final fpw, params: %s", best_params)
+    pw = FPWClassifier(**best_params)
+    pw.fit(X, y, item_feature_m=item_feature_m)
 
     X_test, _, _ = load_data(args.testing_csv, uid_idx, ifd.iid_to_row)
     X_test = X_test[np.random.choice(X_test.shape[0], args.test_size, replace=False)]
     X_test, y_test = sample_negative(X_test)
 
-    auc = roc_auc_score(y_test, bpr.predict(X_test))
-    logging.info("Test AUC: %.3f", auc)
+    acc = accuracy_score_avg_by_users(y_test, pw.predict(X_test), X_test[:, 0].reshape(-1))
+    logging.info("Test accuracy: %.3f", acc)
 
 
 if __name__ == '__main__':

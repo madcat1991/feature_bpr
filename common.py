@@ -8,7 +8,7 @@ from data_tools.pairwise import normailze_uids_and_iids
 from metrics import accuracy_score_avg_by_users
 
 
-def find_best_params(X, y, est_class, param_grid, test_size, n_splits=1, random_state=42):
+def find_best_params(X, y, est_class, param_grid, test_size, n_splits=1, random_state=42, **fit_kwargs):
     logging.info("Starting grid search")
     best_params = best_auc = None
     for params in ParameterGrid(param_grid):
@@ -18,7 +18,7 @@ def find_best_params(X, y, est_class, param_grid, test_size, n_splits=1, random_
         splitter = ShuffleSplit(n_splits, test_size, random_state=random_state)
         accs = []
         for train_ids, valid_ids in splitter.split(X):
-            pw.fit(X[train_ids], y[train_ids])
+            pw.fit(X[train_ids], y[train_ids], **fit_kwargs)
 
             X_valid, y_valid = X[valid_ids], y[valid_ids]
             acc = accuracy_score_avg_by_users(y_valid, pw.predict(X_valid), X_valid[:, 0].reshape(-1))
