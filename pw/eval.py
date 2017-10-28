@@ -18,8 +18,8 @@ def main():
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [3],
-        "n_factors": [5],
+        "n_epochs": [5],
+        "n_factors": [5, 10, 20],
         "lambda_": [0.01],
         "learning_rate": [0.01],
         "random_state": [args.random_state],

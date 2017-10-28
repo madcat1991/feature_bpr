@@ -65,10 +65,8 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
                         feed_dict={self._X: X_batch, self._y: y_batch, self._training: True}
                     )
 
-                loss, y_pred = sess.run(
-                    [self._loss, self._y_predicted],
-                    feed_dict={self._X: X_batch, self._y: y_batch}
-                )
+                loss = sess.run(self._loss, feed_dict={self._X: X_batch, self._y: y_batch})
+                y_pred = self.predict(X_batch)
                 acc = accuracy_score_avg_by_users(y_batch, y_pred, X_batch[:, 0].reshape(-1))
                 print("%3s. Last training batch: loss=%.3f, accuracy=%.3f" % (epoch, loss, acc))
 
@@ -99,6 +97,7 @@ class PWClassifier(BasePWClassifier):
         uids, iids_i, iids_j = tf.unstack(X, axis=1)
 
         y = tf.placeholder(tf.float32, shape=(None,), name="y")
+        training = tf.placeholder_with_default(False, shape=(), name='training')
 
         p = tf.get_variable(
             "P",
@@ -136,6 +135,7 @@ class PWClassifier(BasePWClassifier):
         saver = tf.train.Saver()
 
         self._X, self._y = X, y
+        self._training = training
         self._loss = loss
         self._y_prob = sigma
         self._y_predicted = prediction
