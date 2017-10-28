@@ -9,7 +9,7 @@ import numpy as np
 
 from common import load_data, sample_negative, find_best_params
 from data_tools.provider import get_item_feature_data
-from f_pw.model import FPWClassifier
+from f_pw.model import FPWClassifier, FPWClassifier2
 from metrics import accuracy_score_avg_by_users
 
 
@@ -21,10 +21,10 @@ def main():
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [3],
-        "n_factors": [5, 10],
+        "n_epochs": [5],
+        "n_factors": [5],
         "lambda_": [0.1],
-        "learning_rate": [0.01],
+        "learning_rate": [0.001],
         "random_state": [args.random_state],
         "batch_size": [10000],
         "n_users": [len(uid_idx)],
@@ -33,12 +33,12 @@ def main():
     }
 
     best_params = find_best_params(
-        X, y, FPWClassifier, param_grid, args.test_size, random_state=args.random_state,
+        X, y, FPWClassifier2, param_grid, args.test_size, random_state=args.random_state,
         item_feature_m=item_feature_m
     )
 
     logging.info("Training final fpw, params: %s", best_params)
-    pw = FPWClassifier(**best_params)
+    pw = FPWClassifier2(**best_params)
     pw.fit(X, y, item_feature_m=item_feature_m)
 
     X_test, _, _ = load_data(args.testing_csv, uid_idx, ifd.iid_to_row)
