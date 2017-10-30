@@ -10,12 +10,14 @@ import sys
 from data_tools.movielens import get_ratings_df
 
 
-def clean_df(df):
+def clean_bad_uids_from_df(df):
     """The function leaves only users who rated two or more items with different ratings
     """
+    logging.info("Before cleaning from bad uids: %s", df.shape)
     unique_ratings_per_user = df.groupby("userId").rating.nunique()
     good_users = unique_ratings_per_user[unique_ratings_per_user > 1].index
     df = df[df.userId.isin(good_users)]
+    logging.info("After cleaning from bad uids: %s", df.shape)
     return df
 
 
@@ -28,8 +30,8 @@ def get_training_and_testing_dfs():
     testing_df = df[df.timestamp > border_ts].drop("timestamp", axis=1)
     logging.info("Training and testing shapes: %s, %s", training_df.shape, testing_df.shape)
 
-    training_df = clean_df(training_df)
-    testing_df = clean_df(testing_df)
+    training_df = clean_bad_uids_from_df(training_df)
+    testing_df = clean_bad_uids_from_df(testing_df)
 
     # removing users to whom we can't recommend anything
     # removing items about which we don't have training data (for simple BPR)
@@ -38,7 +40,7 @@ def get_training_and_testing_dfs():
         testing_df.movieId.isin(training_df.movieId)
     ]
 
-    logging.info("Training and testing shapes after cleaning: %s, %s", training_df.shape, testing_df.shape)
+    logging.info("Training and testing shapes before saving: %s, %s", training_df.shape, testing_df.shape)
     return training_df, testing_df
 
 
