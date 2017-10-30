@@ -20,7 +20,8 @@ def main():
     param_grid = {
         "n_epochs": [5],
         "n_factors": [5, 10, 20],
-        "lambda_": [0.01],
+        "lambda_p": [0.01],
+        "lambda_q": [0.01],
         "learning_rate": [0.01],
         "random_state": [args.random_state],
         "batch_size": [10000],
