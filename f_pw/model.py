@@ -5,11 +5,13 @@ from pw.model import BasePWClassifier
 
 
 class FPWClassifier(BasePWClassifier):
-    def __init__(self, n_users, n_items, n_features, n_factors=10, lambda_=0.01, n_epochs=20, batch_size=1000,
-                 learning_rate=0.001, random_state=None):
+    def __init__(self, n_users, n_items, n_features, lambda_p, lambda_w, n_factors=10,
+                 n_epochs=20, batch_size=1000, learning_rate=0.001, random_state=None):
         super(FPWClassifier, self).__init__(
-            n_users, n_items, n_factors, lambda_, n_epochs, batch_size, learning_rate, random_state
+            n_users, n_items, n_factors, n_epochs, batch_size, learning_rate, random_state
         )
+        self.lambda_p = lambda_p
+        self.lambda_w = lambda_w
         self.n_features = n_features
 
     def _build_graph(self, item_feature_m):
@@ -33,7 +35,7 @@ class FPWClassifier(BasePWClassifier):
             [self.n_users, self.n_factors],
             tf.float32,
             tf.variance_scaling_initializer,
-            tf.contrib.layers.l2_regularizer(self.lambda_)
+            tf.contrib.layers.l2_regularizer(self.lambda_p)
         )
 
         # x_ui - x_uj = p_u.q_i - p_u.q_j = p_u.(f_i.W - f_j.W) = p_u.d_f.W
@@ -46,9 +48,9 @@ class FPWClassifier(BasePWClassifier):
         df_W = tf.layers.dense(
             delta_f,
             self.n_factors,
+            use_bias=False,
             kernel_initializer=tf.contrib.layers.variance_scaling_initializer(),
-            kernel_regularizer=tf.contrib.layers.l2_regularizer(self.lambda_),
-            # activation=tf.nn.elu,
+            kernel_regularizer=tf.contrib.layers.l2_regularizer(self.lambda_w),
             name="W"
         )
 
@@ -57,7 +59,6 @@ class FPWClassifier(BasePWClassifier):
             sigma = tf.sigmoid(dot, name="sigma")
             prediction = tf.round(sigma)
 
-        # loss = tf.nn.l2_loss(tf.subtract(prediction, y), name='loss')
         x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=sigma)
         loss = tf.reduce_sum(x_entropy, name="loss")
 
@@ -67,11 +68,4 @@ class FPWClassifier(BasePWClassifier):
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
-        # Make the important operations available easily through instance variables
-        self._X, self._y = X, y
-        self._training = training
-        self._loss = loss
-        self._y_prob = sigma
-        self._y_predicted = prediction
-        self._training_op = training_op
-        self._init, self._saver = init, saver
+        self._graph_important_ops(X, y, training, training_op, loss, sigma, prediction, init, saver)

@@ -7,12 +7,11 @@ from metrics import accuracy_score_avg_by_users
 
 
 class BasePWClassifier(BaseEstimator, ClassifierMixin):
-    def __init__(self, n_users, n_items, n_factors=10, lambda_=0.01, n_epochs=20, batch_size=1000,
+    def __init__(self, n_users, n_items, n_factors=10, n_epochs=20, batch_size=1000,
                  learning_rate=0.001, random_state=None):
         self.n_users = n_users
         self.n_items = n_items
         self.n_factors = n_factors
-        self.lambda_ = lambda_
         self.n_epochs = n_epochs
         self.learning_rate = learning_rate
         self.random_state = random_state
@@ -23,6 +22,15 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
     def close_session(self):
         if self._session:
             self._session.close()
+
+    def _graph_important_ops(self, X, y, training, training_op, loss, y_prob, y_pred, init, saver):
+        self._X, self._y = X, y
+        self._training = training
+        self._training_op = training_op
+        self._loss = loss
+        self._y_prob = y_prob
+        self._y_predicted = y_pred
+        self._init, self._saver = init, saver
 
     def _build_graph(self, **kwargs):
         # input
@@ -37,13 +45,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         saver = tf.train.Saver()
 
         # Make the important operations available easily through instance variables
-        self._X, self._y = X, y
-        self._training = training
-        self._loss = None
-        self._y_prob = None
-        self._y_predicted = None
-        self._training_op = None
-        self._init, self._saver = init, saver
+        self._graph_important_ops(X, y, training, None, None, None, None, init, saver)
 
     def fit(self, X, y, **kwargs):
         self.close_session()
@@ -87,6 +89,14 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
 
 
 class PWClassifier(BasePWClassifier):
+    def __init__(self, n_users, n_items, lambda_p, lambda_q, n_factors=10, n_epochs=20, batch_size=1000,
+                 learning_rate=0.001, random_state=None):
+        super(PWClassifier, self).__init__(
+            n_users, n_items, n_factors, n_epochs, batch_size, learning_rate, random_state
+        )
+        self.lambda_p = lambda_p
+        self.lambda_q = lambda_q
+
     def _build_graph(self):
         if self.random_state is not None:
             tf.set_random_seed(self.random_state)
@@ -104,14 +114,14 @@ class PWClassifier(BasePWClassifier):
             [self.n_users, self.n_factors],
             tf.float32,
             tf.variance_scaling_initializer,
-            tf.contrib.layers.l2_regularizer(self.lambda_)
+            tf.contrib.layers.l2_regularizer(self.lambda_p)
         )
         q = tf.get_variable(
             "Q",
             [self.n_users, self.n_factors],
             tf.float32,
             tf.variance_scaling_initializer,
-            tf.contrib.layers.l2_regularizer(self.lambda_)
+            tf.contrib.layers.l2_regularizer(self.lambda_q)
         )
 
         p_u = tf.nn.embedding_lookup(p, uids)
@@ -134,10 +144,4 @@ class PWClassifier(BasePWClassifier):
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
-        self._X, self._y = X, y
-        self._training = training
-        self._loss = loss
-        self._y_prob = sigma
-        self._y_predicted = prediction
-        self._training_op = training_op
-        self._init, self._saver = init, saver
+        self._graph_important_ops(X, y, training, training_op, loss, sigma, prediction, init, saver)
