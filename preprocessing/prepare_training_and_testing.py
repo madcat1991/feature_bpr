@@ -78,9 +78,12 @@ def create_and_store_pairwise_data(df, output_path):
         writer = csv.writer(f)
         writer.writerow(["uid", "iid_a", "iid_b"])
 
+        n_rows = 0
         for pw_data in iter_pairwise_data(df):
             writer.writerow(pw_data)
-    logging.info("Pairwise preferences have been stored to: %s", output_path)
+            n_rows += 1
+
+    logging.info("Pairwise preferences [%s] have been stored to: %s", n_rows, output_path)
 
 
 def main():

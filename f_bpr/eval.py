@@ -25,7 +25,7 @@ def main():
         "n_factors": [10],
         "lambda_p": [0.1],
         "lambda_w": [0.1],
-        "learning_rate": [0.0001],
+        "learning_rate": [0.01],
         "random_state": [args.random_state],
         "batch_size": [20000],
         "n_users": [len(uid_idx)],

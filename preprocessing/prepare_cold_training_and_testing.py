@@ -15,16 +15,10 @@ from preprocessing.prepare_training_and_testing import clean_bad_uids_from_df, c
 
 
 def get_movie_ids(df):
-    obs_per_movie = df.movieId.value_counts().sort_values()
-
-    selection_size = args.n_items * 2
-    if args.popularity == 'low':
-        obs_per_movie = obs_per_movie.head(selection_size)
-    elif args.popularity == 'high':
-        obs_per_movie = obs_per_movie.tail(selection_size)
-
+    obs_per_movie = df.movieId.value_counts()
+    obs_per_movie = obs_per_movie[obs_per_movie <= args.max_obs]
     logging.info("Observations per cold-start movie: %s", obs_per_movie.describe().to_dict())
-    return np.random.choice(obs_per_movie.index, args.n_items, replace=False)
+    return obs_per_movie.index
 
 
 def get_training_and_testing_dfs():
@@ -49,9 +43,9 @@ def get_training_and_testing_dfs():
         ]
     else:
         df = get_ratings_df(args.rating_csv).drop("timestamp", axis=1)
-        movie_ids = get_movie_ids(df)
-
         df = clean_bad_uids_from_df(df)
+
+        movie_ids = get_movie_ids(df)
 
         training_df = df[~df.movieId.isin(movie_ids)]
         testing_df = df[
@@ -85,12 +79,9 @@ if __name__ == '__main__':
                              'the data is split to the training and testing sets and the cold items'
                              'have only history observed in the testing set. If None, the cold items'
                              'use observations from the whole dataset. Default: None')
-    parser.add_argument('-p', default='low', dest="popularity", choices=["low", "random", "high"],
-                        help='The popularity of items selected for the cold start. '
-                             'If -q is not None, then the popularity is calculated only within'
-                             'the testing set. Default: low')
-    parser.add_argument('-n', default=500, dest="n_items", type=int,
-                        help='The number of test items. Default: 500')
+    parser.add_argument('-m', default=5, dest="max_obs", type=int,
+                        help='The maximum number of observations. If -q is not None, then the '
+                             'number is calculated only within the testing set. Default: 5')
 
     parser.add_argument("--log-level", default='INFO', dest="log_level",
                         choices=['DEBUG', 'INFO', 'WARNINGS', 'ERROR'], help="Logging level")
