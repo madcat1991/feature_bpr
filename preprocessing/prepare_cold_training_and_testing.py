@@ -26,8 +26,8 @@ def get_training_and_testing_dfs():
     testing_df = clean_df(testing_df)
 
     # we have 12387 items in training_df
-    movie_ids = training_df.movieId.value_counts().head(5000)
-    movie_ids = np.random.choice(movie_ids.index, 2000, replace=False)
+    movie_ids = training_df.movieId.value_counts().head(2000)
+    movie_ids = np.random.choice(movie_ids.index, 500, replace=False)
 
     training_df = training_df[~training_df.movieId.isin(movie_ids)]
     testing_df = testing_df[
