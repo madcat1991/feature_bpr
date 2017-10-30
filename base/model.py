@@ -3,7 +3,7 @@ import tensorflow as tf
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.exceptions import NotFittedError
 
-from metrics import accuracy_score_avg_by_users
+from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
 
 
 class BasePWClassifier(BaseEstimator, ClassifierMixin):
@@ -66,10 +66,14 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
                         feed_dict={self._X: X_batch, self._y: y_batch, self._training: True}
                     )
 
+                uids = X_batch[:, 0].reshape(-1)
+                acc = accuracy_score_avg_by_users(y_batch, self.predict(X_batch), uids)
+                auc = bpr_auc_by_users(y_batch, self.predict_proba(X_batch), uids)
                 loss = sess.run(self._loss, feed_dict={self._X: X_batch, self._y: y_batch})
-                y_pred = self.predict(X_batch)
-                acc = accuracy_score_avg_by_users(y_batch, y_pred, X_batch[:, 0].reshape(-1))
-                print("%3s. Last training batch: loss=%.3f, accuracy=%.3f" % (epoch, loss, acc))
+                print(
+                    "%3s. Last training batch: loss=%.3f, acc=%.3f, auc=%.3f" %
+                    (epoch, loss, acc, auc)
+                )
 
     def save(self, path):
         self._saver.save(self._session, path)

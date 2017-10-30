@@ -10,7 +10,7 @@ import numpy as np
 from common import load_data, sample_negative, find_best_params
 from data_tools.provider import get_item_feature_data
 from f_bpr.model import FBPR
-from metrics import accuracy_score_avg_by_users
+from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
 
 
 def main():
@@ -46,8 +46,10 @@ def main():
     X_test = X_test[np.random.choice(X_test.shape[0], args.test_size, replace=False)]
     X_test, y_test = sample_negative(X_test)
 
-    acc = accuracy_score_avg_by_users(y_test, bpr.predict(X_test), X_test[:, 0].reshape(-1))
-    logging.info("Test accuracy: %.3f", acc)
+    uids = X_test[:, 0].reshape(-1)
+    acc = accuracy_score_avg_by_users(y_test, bpr.predict(X_test), uids)
+    auc = bpr_auc_by_users(y_test, bpr.predict_proba(X_test), uids)
+    logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
 
 
 if __name__ == '__main__':
