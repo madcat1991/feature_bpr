@@ -6,8 +6,8 @@ from base.model import BasePWClassifier
 
 class DLPWClassifier(BasePWClassifier):
     def __init__(self, n_users, n_items, n_features, lambda_ol, lambda_hl, h_layers,
-                 n_factors=10, n_epochs=20, batch_size=1000, dropout_rate=0.5,
-                 batch_norm_momentum=0.95, activation=tf.nn.elu,
+                 n_factors=10, n_epochs=20, batch_size=1000, dropout_rate=None,
+                 batch_norm_momentum=None, activation=tf.nn.elu,
                  learning_rate=0.001, random_state=None):
         super(DLPWClassifier, self).__init__(
             n_users, n_items, n_factors, n_epochs, batch_size, learning_rate, random_state

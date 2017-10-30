@@ -23,12 +23,12 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         if self._session:
             self._session.close()
 
-    def _graph_important_ops(self, X, y, training, training_op, loss, y_prob, init, saver):
+    def _graph_important_ops(self, X, y, training, training_op, loss, y_proba, init, saver):
         self._X, self._y = X, y
         self._training = training
         self._training_op = training_op
         self._loss = loss
-        self._y_prob = y_prob
+        self._y_proba = y_proba
         self._init, self._saver = init, saver
 
     def _build_graph(self, **kwargs):
@@ -81,4 +81,4 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         if not self._session:
             raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
         with self._session.as_default():
-            return self._y_prob.eval(feed_dict={self._X: X})
+            return self._y_proba.eval(feed_dict={self._X: X})

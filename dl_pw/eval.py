@@ -22,10 +22,12 @@ def main():
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [30],
+        "n_epochs": [5],
         "n_factors": [5],
-        "lambda_": [0.1],
-        "learning_rate": [0.001],
+        "lambda_ol": [0.1],
+        "lambda_hl": [0.1],
+        "h_layers": [[20]],
+        "learning_rate": [0.0001],
         "random_state": [args.random_state],
         "batch_size": [20000],
         "n_users": [len(uid_idx)],

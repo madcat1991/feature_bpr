@@ -1,5 +1,5 @@
 """
-This script evaluates the BPR model
+This script evaluates the PW model
 """
 
 import argparse
@@ -7,55 +7,40 @@ import logging
 import sys
 
 import numpy as np
-import pandas as pd
-from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
+from common import find_best_params, sample_negative, load_data
+from metrics import accuracy_score_avg_by_users
 from bpr.model import BPR
-from common import load_data
 
 
 def main():
     X, uid_idx, iid_idx = load_data(args.training_csv)
-
-    n_users = len(uid_idx)
-    n_items = len(iid_idx)
+    X, y = sample_negative(X)
 
     param_grid = {
         "n_epochs": [5],
-        "n_factors": [15],
-        "lambda_": [0.01],
+        "n_factors": [5, 10, 20],
+        "lambda_p": [0.01],
+        "lambda_q": [0.01],
         "learning_rate": [0.01],
         "random_state": [args.random_state],
         "batch_size": [10000],
+        "n_users": [len(uid_idx)],
+        "n_items": [len(iid_idx)]
     }
 
-    logging.info("Starting grid search")
-    best_params = best_auc = None
-    for params in ParameterGrid(param_grid):
-        logging.info("Evaluating params: %s", params)
-        bpr = BPR(n_users, n_items, **params)
-
-        splitter = ShuffleSplit(n_splits=1, test_size=args.test_size, random_state=args.random_state)
-        aucs = []
-        for train_ids, valid_ids in splitter.split(X):
-            bpr.fit(X[train_ids])
-            aucs.append(bpr.get_auc(X[valid_ids]))
-
-        auc = pd.np.mean(aucs)
-        if best_auc is None or best_auc < auc:
-            best_params = params
-            best_auc = auc
-            logging.info("Best AUC=%.3f, params: %s", auc, params)
+    best_params = find_best_params(X, y, BPR, param_grid, args.test_size, random_state=args.random_state)
 
     logging.info("Training final bpr, params: %s", best_params)
-    bpr = BPR(n_users, n_items, **best_params)
-    bpr.fit(X)
+    bpr = BPR(**best_params)
+    bpr.fit(X, y)
 
     X_test, _, _ = load_data(args.testing_csv, uid_idx, iid_idx)
     X_test = X_test[np.random.choice(X_test.shape[0], args.test_size, replace=False)]
+    X_test, y_test = sample_negative(X_test)
 
-    auc = bpr.get_auc(X_test)
-    logging.info("Test AUC: %.3f", auc)
+    acc = accuracy_score_avg_by_users(y_test, bpr.predict(X_test), X_test[:, 0].reshape(-1))
+    logging.info("Test accuracy: %.3f", acc)
 
 
 if __name__ == '__main__':
