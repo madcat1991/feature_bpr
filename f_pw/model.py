@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from pw.model import BasePWClassifier
+from base.model import BasePWClassifier
 
 
 class FPWClassifier(BasePWClassifier):

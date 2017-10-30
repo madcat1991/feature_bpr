@@ -23,7 +23,7 @@ def main():
     param_grid = {
         "n_epochs": [2],
         "n_factors": [5],
-        "lambda_p": [0.1, 1, 10, 100],
+        "lambda_p": [0.1, 1.0, 10.0, 100.0],
         "lambda_w": [0.1],
         "learning_rate": [0.001],
         "random_state": [args.random_state],
