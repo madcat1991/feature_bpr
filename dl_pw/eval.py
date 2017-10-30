@@ -1,4 +1,5 @@
-"""This script evaluates the fPW model
+"""
+This script evaluates the DL-PW model
 """
 
 import argparse
