@@ -36,7 +36,8 @@ def main():
     bpr.fit(X, y)
 
     X_test, _, _ = load_data(args.testing_csv, uid_idx, iid_idx)
-    X_test = X_test[np.random.choice(X_test.shape[0], args.test_size, replace=False)]
+    test_size = min(X_test.shape[0], args.test_size)
+    X_test = X_test[np.random.choice(X_test.shape[0], test_size, replace=False)]
     X_test, y_test = sample_negative(X_test)
 
     uids = X_test[:, 0].reshape(-1)
