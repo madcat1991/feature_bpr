@@ -68,4 +68,10 @@ class FPWClassifier(BasePWClassifier):
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
-        self._graph_important_ops(X, y, training, training_op, loss, sigma, prediction, init, saver)
+        self._graph_important_ops(X, y, training, training_op, loss, sigma, init, saver)
+
+    def predict(self, X):
+        probs = self.predict_proba(X)
+        probs[probs > 0] = 1
+        probs[probs < 0] = 0
+        return probs

@@ -23,13 +23,12 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         if self._session:
             self._session.close()
 
-    def _graph_important_ops(self, X, y, training, training_op, loss, y_prob, y_pred, init, saver):
+    def _graph_important_ops(self, X, y, training, training_op, loss, y_prob, init, saver):
         self._X, self._y = X, y
         self._training = training
         self._training_op = training_op
         self._loss = loss
         self._y_prob = y_prob
-        self._y_predicted = y_pred
         self._init, self._saver = init, saver
 
     def _build_graph(self, **kwargs):
@@ -45,7 +44,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         saver = tf.train.Saver()
 
         # Make the important operations available easily through instance variables
-        self._graph_important_ops(X, y, training, None, None, None, None, init, saver)
+        self._graph_important_ops(X, y, training, None, None, None, init, saver)
 
     def fit(self, X, y, **kwargs):
         self.close_session()
@@ -76,10 +75,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         self._saver.save(self._session, path)
 
     def predict(self, X):
-        if not self._session:
-            raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
-        with self._session.as_default():
-            return self._y_predicted.eval(feed_dict={self._X: X})
+        raise NotImplementedError()
 
     def predict_proba(self, X):
         if not self._session:

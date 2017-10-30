@@ -49,7 +49,6 @@ class PWClassifier(BasePWClassifier):
             sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
             dot = tf.reduce_sum(np.multiply(p_u, sub_ij), axis=1, name="dot")
             sigma = tf.sigmoid(dot, name="sigma")
-            prediction = tf.round(sigma)
 
         x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=sigma)
         loss = tf.reduce_sum(x_entropy, name="loss")
@@ -60,4 +59,7 @@ class PWClassifier(BasePWClassifier):
         init = tf.global_variables_initializer()
         saver = tf.train.Saver()
 
-        self._graph_important_ops(X, y, training, training_op, loss, sigma, prediction, init, saver)
+        self._graph_important_ops(X, y, training, training_op, loss, sigma, init, saver)
+
+    def predict(self, X):
+        return np.round(self.predict_proba(X))

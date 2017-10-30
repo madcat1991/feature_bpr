@@ -107,7 +107,7 @@ class DLPWClassifier(BasePWClassifier):
         saver = tf.train.Saver()
 
         # Make the important operations available easily through instance variables
-        self._graph_important_ops(X, y, training, training_op, loss, y_proba, None, init, saver)
+        self._graph_important_ops(X, y, training, training_op, loss, y_proba, init, saver)
 
     def predict(self, X):
         return np.argmax(self.predict_proba(X), axis=1)
