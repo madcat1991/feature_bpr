@@ -27,6 +27,10 @@ class ItemFeatureData(object):
             item_vec = item_vec.todense().reshape(-1)
         return item_vec
 
+    def get_items_matrix(self, items_ids):
+        row_ids = [self.iid_to_row[item_id] for item_id in items_ids]
+        return self.m[row_ids]
+
     @staticmethod
     def create(movie_csv_path, tag_csv_path):
         logging.info("Creating item-feature data")

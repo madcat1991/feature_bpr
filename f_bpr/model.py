@@ -18,7 +18,6 @@ class FBPR(BasePWClassifier):
         if self.random_state is not None:
             tf.set_random_seed(self.random_state)
             np.random.seed(self.random_state)
-
         # uid, iid_i, iid_j
         X = tf.placeholder(tf.int32, shape=(None, 3), name="X")
         uids, iids_i, iids_j = tf.unstack(X, axis=1)
@@ -54,7 +53,7 @@ class FBPR(BasePWClassifier):
             name="W"
         )
 
-        logits = tf.reduce_sum(np.multiply(p_u, df_W), axis=1, name="logits")
+        logits = tf.reduce_sum(tf.multiply(p_u, df_W), axis=1, name="logits")
         y_proba = tf.nn.sigmoid(logits, name="y_proba")
 
         x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=logits)

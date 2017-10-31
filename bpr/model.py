@@ -47,7 +47,7 @@ class BPR(BasePWClassifier):
         with tf.name_scope("computation"):
             # x_ui - x_uj = p_u.q_i - p_u.q_j = p_u.(q_i - q_j)
             sub_ij = tf.subtract(q_i, q_j, name='sub_ij')
-            logits = tf.reduce_sum(np.multiply(p_u, sub_ij), axis=1, name="logits")
+            logits = tf.reduce_sum(tf.multiply(p_u, sub_ij), axis=1, name="logits")
 
         y_proba = tf.nn.sigmoid(logits, name="y_proba")
 

@@ -61,10 +61,10 @@ def iter_pairwise_data(df):
 
         iids = gp_df.movieId.tolist()
         ratings = gp_df.rating.tolist()
-        pairs = list(zip(iids, ratings))
 
-        for _data in zip(pairs, pairs[1:]):
-            (iid1, rating1), (iid2, rating2) = _data
+        for i in range(1, len(iids)):
+            iid1, rating1 = iids[i - 1], ratings[i - 1]
+            iid2, rating2 = iids[i], ratings[i]
 
             if rating1 > rating2:
                 yield uid, iid1, iid2
