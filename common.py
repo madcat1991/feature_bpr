@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 import pandas as pd
@@ -55,3 +56,20 @@ def load_data(csv_path, uid_idx=None, iid_idx=None):
     else:
         pw_df, uid_idx, iid_idx = normailze_uids_and_iids(pw_df)
     return pw_df.values, uid_idx, iid_idx
+
+
+def get_training_path(data_dir=None):
+    name = "training.csv"
+    return os.path.join(data_dir, name) if data_dir else name
+
+
+def get_testing_path(is_cold, n_obs=None, sim=None, data_dir=None):
+    name = "testing"
+    if is_cold:
+        name += "_cold"
+    if n_obs is not None:
+        name += "_obs_%d" % n_obs
+    elif sim is not None:
+        name += "_sim_%d" % int(sim * 100)
+    name = "%s.csv" % name
+    return os.path.join(data_dir, name) if data_dir else name

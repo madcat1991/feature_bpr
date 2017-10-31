@@ -2,12 +2,14 @@
 """
 
 import argparse
+import glob
 import logging
+import os
 import sys
 
 import numpy as np
 
-from common import load_data, sample_negative, find_best_params
+from common import load_data, sample_negative, find_best_params, get_training_path
 from data_tools.provider import get_item_feature_data
 from f_bpr.model import FBPR
 from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
@@ -17,15 +19,15 @@ def main():
     ifd = get_item_feature_data(args.pkl_data, args.movie_csv, args.tag_csv)
     item_feature_m = ifd.m.todense()
 
-    X, uid_idx, _ = load_data(args.training_csv, iid_idx=ifd.iid_to_row)
+    X, uid_idx, _ = load_data(get_training_path(args.data_dir), iid_idx=ifd.iid_to_row)
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [3],
-        "n_factors": [10],
+        "n_epochs": [10],
+        "n_factors": [20],
         "lambda_p": [0.1],
         "lambda_w": [0.1],
-        "learning_rate": [0.01],
+        "learning_rate": [0.001],
         "random_state": [args.random_state],
         "batch_size": [20000],
         "n_users": [len(uid_idx)],
@@ -42,23 +44,23 @@ def main():
     bpr = FBPR(**best_params)
     bpr.fit(X, y, item_feature_m=item_feature_m)
 
-    X_test, _, _ = load_data(args.testing_csv, uid_idx, ifd.iid_to_row)
-    test_size = min(X_test.shape[0], args.test_size)
-    X_test = X_test[np.random.choice(X_test.shape[0], test_size, replace=False)]
-    X_test, y_test = sample_negative(X_test)
+    for path in glob.glob(os.path.join(args.data_dir, "testing*.csv")):
+        print(path)
+        X_test, _, _ = load_data(path, uid_idx, ifd.iid_to_row)
+        test_size = min(X_test.shape[0], args.test_size)
+        X_test = X_test[np.random.choice(X_test.shape[0], test_size, replace=False)]
+        X_test, y_test = sample_negative(X_test)
 
-    uids = X_test[:, 0].reshape(-1)
-    acc = accuracy_score_avg_by_users(y_test, bpr.predict(X_test), uids)
-    auc = bpr_auc_by_users(y_test, bpr.predict_proba(X_test), uids)
-    logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
+        uids = X_test[:, 0].reshape(-1)
+        acc = accuracy_score_avg_by_users(y_test, bpr.predict(X_test), uids)
+        auc = bpr_auc_by_users(y_test, bpr.predict_proba(X_test), uids)
+        logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('--tr', dest="training_csv", required=True,
-                        help='Path to the pairwise training data')
-    parser.add_argument('--ts', dest="testing_csv", required=True,
-                        help='Path to the pairwise testing data')
+    parser.add_argument('-p', default="data", dest="data_dir",
+                        help='Path to the data directory. Default: data/')
 
     parser.add_argument('-d', dest="pkl_data", default="ifd.pkl",
                         help='Path to the *.pkl file with the item-feature data. Default: ifd.pkl')
