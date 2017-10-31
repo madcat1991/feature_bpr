@@ -5,88 +5,54 @@ set contains only items which are not observed in the training set.
 """
 
 import argparse
-import csv
 import logging
 import sys
 
 import numpy as np
+from sklearn.preprocessing import normalize
 
-from data_tools.movielens import get_ratings_df
-from train_and_test.plain import clean_bad_uids_from_df, create_and_store_pairwise_data
+from data_tools.provider import get_item_feature_data
+from train_and_test.cold_obs_based import create_and_store_test_pairwise_data, get_training_and_testing_dfs
+from train_and_test.plain import create_and_store_pairwise_data
 
 
-def get_movie_ids(df):
-    obs_per_movie = df.movieId.value_counts()
-    obs_per_movie = obs_per_movie[obs_per_movie == args.n_obs]
+def get_movie_ids(training_df, testing_df):
+    ifd = get_item_feature_data(args.pkl_data)
 
-    if obs_per_movie.shape[0] > args.n_items:
-        idx = np.random.choice(obs_per_movie.shape[0], args.n_items, False)
-        obs_per_movie = obs_per_movie.iloc[idx]
+    obs_per_tr_iids = training_df.movieId.value_counts()
+    tr_m = normalize(ifd.get_items_matrix(obs_per_tr_iids.index))
+
+    # only the movies which are not present in the training set
+    ts_iids = testing_df[~testing_df.movieId.isin(obs_per_tr_iids.index)].movieId.unique()
+    ts_m = normalize(ifd.get_items_matrix(ts_iids))
+
+    sim_m = ts_m.dot(tr_m.T)
+    sim_m = (sim_m.multiply(obs_per_tr_iids.values).sum(axis=1) / training_df.shape[0]).A1
+    logging.info(
+        "Sim bins:\n%s", list(zip(*np.histogram(sim_m, bins=np.linspace(0, 1, 21))))
+    )
+
+    diff = np.isclose(sim_m, args.average_sim, atol=0.05)
+    idx = np.where(diff)[0]
+    logging.info("Min sim: %.3f, max sim: %.3f", min(sim_m[idx]), max(sim_m[idx]))
+
+    if idx.size > args.n_items:
+        idx = np.random.choice(idx, args.n_items, False)
     else:
-        logging.info("The number of candidates [%s] < n_items. Taking them all")
-    return set(obs_per_movie.index)
-
-
-def iter_test_pairwise_data(df, movie_ids):
-    for _, gp_df in df.groupby("userId"):
-        uid = int(gp_df.iloc[0].userId)
-
-        gp_df = gp_df.sample(frac=1)
-
-        iids = gp_df.movieId.tolist()
-        ratings = gp_df.rating.tolist()
-
-        for i in range(1, len(iids)):
-            iid1, rating1 = iids[i - 1], ratings[i - 1]
-            iid2, rating2 = iids[i], ratings[i]
-
-            if iid1 in movie_ids or iid2 in movie_ids:
-                if rating1 > rating2:
-                    yield uid, iid1, iid2
-                elif rating1 < rating2:
-                    yield uid, iid2, iid1
-
-
-def create_and_store_test_pairwise_data(df, movie_ids, output_path):
-    logging.info("Converting test DF with shape %s to pairwise preferences", df.shape)
-    with open(output_path, "w") as f:
-        writer = csv.writer(f)
-        writer.writerow(["uid", "iid_a", "iid_b"])
-
-        n_rows = 0
-        for pw_data in iter_test_pairwise_data(df, movie_ids):
-            writer.writerow(pw_data)
-            n_rows += 1
-
-    logging.info("Test pairwise preferences [%s] have been stored to: %s", n_rows, output_path)
-
-
-def get_training_and_testing_dfs():
-    df = get_ratings_df(args.rating_csv)
-    logging.info("Ratings shape: %s", df.shape)
-
-    border_ts = df.timestamp.quantile(q=args.split_q)
-    training_df = df[df.timestamp <= border_ts].drop("timestamp", axis=1)
-    testing_df = df[df.timestamp > border_ts].drop("timestamp", axis=1)
-    logging.info("Training and testing shapes: %s, %s", training_df.shape, testing_df.shape)
-
-    training_df = clean_bad_uids_from_df(training_df)
-    testing_df = clean_bad_uids_from_df(testing_df)
-
-    movie_ids = get_movie_ids(testing_df)
-
-    training_df = training_df[~training_df.movieId.isin(movie_ids)]
-    testing_df = testing_df[testing_df.userId.isin(training_df.userId)]
-
-    logging.info("Training and testing shapes before saving: %s, %s", training_df.shape, testing_df.shape)
-    return training_df, testing_df, movie_ids
+        logging.info("The number of candidates [%s] < n_items. Taking them all", idx.size)
+    return set(ts_iids[idx])
 
 
 def main():
     logging.info("Start")
-    training_df, testing_df, movie_ids = get_training_and_testing_dfs()
+
+    training_df, testing_df = get_training_and_testing_dfs(args.rating_csv, args.split_q)
+
     create_and_store_pairwise_data(training_df, args.training_csv)
+
+    movie_ids = get_movie_ids(training_df, testing_df)
     create_and_store_test_pairwise_data(testing_df, movie_ids, args.testing_csv)
+
     logging.info("Stop")
 
 
@@ -98,12 +64,14 @@ if __name__ == '__main__':
                         help='Path to the training file. Default: cold_training.csv')
     parser.add_argument('--ts', default="cold_testing.csv", dest="testing_csv",
                         help='Path to the testing file. Default: cold_testing.csv')
+    parser.add_argument('-d', dest="pkl_data", default="ifd.pkl",
+                        help='Path to the *.pkl file with the item-feature data. Default: ifd.pkl')
 
     parser.add_argument('-q', default=0.8, type=float, dest="split_q",
                         help='Splitting ratings by timestamp quantile. Default: 0.8')
-    parser.add_argument('-s', default=0.1, dest="average_sim", type=float,
+    parser.add_argument('-s', default=0.2, dest="average_sim", type=float,
                         help='Average weighted feature similarity of testing and training items. '
-                             'Default: 0.1')
+                             'Default: 0.2')
     parser.add_argument('-n', default=1000, dest="n_items", type=int,
                         help='The number of cold-start items in the test set. Default: 1000')
 
