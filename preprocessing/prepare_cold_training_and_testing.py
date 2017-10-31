@@ -8,8 +8,6 @@ import argparse
 import logging
 import sys
 
-import numpy as np
-
 from data_tools.movielens import get_ratings_df
 from preprocessing.prepare_training_and_testing import clean_bad_uids_from_df, create_and_store_pairwise_data
 
