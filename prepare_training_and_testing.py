@@ -15,6 +15,10 @@ from common import get_training_path, get_testing_path
 from data_tools.movielens import get_ratings_df
 from data_tools.provider import get_item_feature_data
 
+TEMPERATURE_COLD = 'cold'
+TEMPERATURE_WARM = 'warm'
+TEMPERATURES = [TEMPERATURE_COLD, TEMPERATURE_WARM]
+
 
 def get_training_and_testing_dfs(rating_csv, split_q):
     df = get_ratings_df(rating_csv)
@@ -45,8 +49,10 @@ def clean_bad_uids_from_df(df):
 
 
 def get_test_movie_obs(training_df, testing_df):
-    if args.is_cold_item:
+    if args.temperature == TEMPERATURE_COLD:
         return testing_df[~testing_df.movieId.isin(training_df.movieId)].movieId.value_counts()
+    elif args.temperature == TEMPERATURE_WARM:
+        return testing_df[testing_df.movieId.isin(training_df.movieId)].movieId.value_counts()
     else:
         return testing_df.movieId.value_counts()
 
@@ -55,8 +61,10 @@ def get_test_movie_sims(training_df, testing_df, ifd, step=1000):
     obs_per_tr_iids = training_df.movieId.value_counts()
     tr_m = normalize(ifd.get_items_matrix(obs_per_tr_iids.index))
 
-    if args.is_cold_item:
+    if args.temperature == TEMPERATURE_COLD:
         ts_iids = testing_df[~testing_df.movieId.isin(obs_per_tr_iids.index)].movieId.unique()
+    elif args.temperature == TEMPERATURE_WARM:
+        ts_iids = testing_df[testing_df.movieId.isin(obs_per_tr_iids.index)].movieId.unique()
     else:
         ts_iids = testing_df.movieId.unique()
 
@@ -115,15 +123,12 @@ def main():
     training_df, testing_df = get_training_and_testing_dfs(args.rating_csv, args.split_q)
     create_and_store_pairwise_data(training_df, get_training_path(args.data_dir))
 
-    if args.is_cold_item:
-        logging.info("Preparing testing data for cold items")
-
     if args.n_obs:
         obs_per_test_movie = get_test_movie_obs(training_df, testing_df)
         for n_obs in args.n_obs:
             logging.info("Collecting testing data for movies with %s observations", n_obs)
             movie_ids = set(obs_per_test_movie[obs_per_test_movie == n_obs].index)
-            path = get_testing_path(args.is_cold_item, n_obs=n_obs, data_dir=args.data_dir)
+            path = get_testing_path(args.data_dir, args.temperature, n_obs=n_obs)
             create_and_store_pairwise_data(testing_df, path, movie_ids)
     elif args.sims:
         ifd = get_item_feature_data(args.pkl_data)
@@ -136,15 +141,17 @@ def main():
             logging.info("Min sim: %.3f, max sim: %.3f", min(sims), max(sims))
 
             movie_ids = set(sim_per_test_movie.index[idx])
-            path = get_testing_path(args.is_cold_item, sim=sim, data_dir=args.data_dir)
+            path = get_testing_path(args.data_dir, args.temperature, sim=sim)
             create_and_store_pairwise_data(testing_df, path, movie_ids)
     else:
-        if args.is_cold_item:
+        if args.temperature == TEMPERATURE_COLD:
             movie_ids = set(testing_df[~testing_df.movieId.isin(training_df.movieId)].movieId)
+        elif args.temperature == TEMPERATURE_WARM:
+            movie_ids = set(testing_df[testing_df.movieId.isin(training_df.movieId)].movieId)
         else:
             movie_ids = set(testing_df.movieId)
 
-        path = get_testing_path(args.is_cold_item, data_dir=args.data_dir)
+        path = get_testing_path(args.data_dir, args.temperature)
         create_and_store_pairwise_data(testing_df, path, movie_ids)
 
     logging.info("Stop")
@@ -168,6 +175,9 @@ if __name__ == '__main__':
     parser.add_argument('-s', dest="sims", type=float, nargs='+',
                         help='How similar the test items should be? '
                              'If specified, the testing data is generated based on similarities')
+    parser.add_argument('-t', dest="temperature", default=None, choices=TEMPERATURES,
+                        help='The type of test items. Default: any')
+
     parser.add_argument('-c', dest="is_cold_item", action='store_true',
                         help='Remove all items observed in the training set from testing set')
 
