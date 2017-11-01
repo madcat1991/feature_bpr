@@ -9,14 +9,14 @@ from data_tools.pairwise import normailze_uids_and_iids
 from metrics import bpr_auc_by_users
 
 
-def find_best_params(X, y, est_class, param_grid, test_size, n_splits=1, random_state=42, **fit_kwargs):
+def find_best_params(X, y, est_class, param_grid, val_size=40000, n_splits=1, random_state=42, **fit_kwargs):
     logging.info("Starting grid search")
     best_params = best_auc = None
     for params in ParameterGrid(param_grid):
         logging.info("Evaluating params: %s", params)
         estimator = est_class(**params)
 
-        splitter = ShuffleSplit(n_splits, test_size, random_state=random_state)
+        splitter = ShuffleSplit(n_splits, val_size, random_state=random_state)
         aucs = []
         for train_ids, valid_ids in splitter.split(X):
             estimator.fit(X[train_ids], y[train_ids], **fit_kwargs)

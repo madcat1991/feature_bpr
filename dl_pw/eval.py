@@ -36,7 +36,7 @@ def main():
     }
 
     best_params = find_best_params(
-        X, y, DLSubPWClassifier, param_grid, args.test_size, random_state=args.random_state,
+        X, y, DLSubPWClassifier, param_grid, random_state=args.random_state,
         item_feature_m=item_feature_m
     )
 

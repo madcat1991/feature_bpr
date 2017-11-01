@@ -29,7 +29,7 @@ def main():
         "n_items": [len(iid_idx)]
     }
 
-    best_params = find_best_params(X, y, BPR, param_grid, args.test_size, random_state=args.random_state)
+    best_params = find_best_params(X, y, BPR, param_grid, random_state=args.random_state)
 
     logging.info("Training final bpr, params: %s", best_params)
     bpr = BPR(**best_params)

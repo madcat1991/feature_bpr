@@ -68,6 +68,7 @@ def get_test_movie_sims(training_df, testing_df, ifd, step=1000):
         limit = min(ts_iids.size, offset + step)
         sim_m = ts_m[offset: limit].dot(tr_m.T)
         sim_m = (sim_m.multiply(obs_per_tr_iids.values).sum(axis=1) / training_df.shape[0]).A1
+        # sim_m = (sim_m.sum(axis=1) / tr_m.shape[0]).A1
         sims = np.r_[sims, sim_m]
 
     logging.info("Sim bins:\n%s", list(zip(*np.histogram(sims, bins=np.linspace(0, 1, 21)))))

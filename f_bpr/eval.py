@@ -2,14 +2,12 @@
 """
 
 import argparse
-import glob
 import logging
-import os
 import sys
 
 import numpy as np
 
-from common import load_data, sample_negative, find_best_params, get_training_path
+from common import load_data, sample_negative, find_best_params, get_training_path, get_testing_path
 from data_tools.provider import get_item_feature_data
 from f_bpr.model import FBPR
 from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
@@ -23,8 +21,8 @@ def main():
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [10],
-        "n_factors": [20],
+        "n_epochs": [1],
+        "n_factors": [5],
         "lambda_p": [0.1],
         "lambda_w": [0.1],
         "learning_rate": [0.001],
@@ -36,7 +34,7 @@ def main():
     }
 
     best_params = find_best_params(
-        X, y, FBPR, param_grid, args.test_size, random_state=args.random_state,
+        X, y, FBPR, param_grid, random_state=args.random_state,
         item_feature_m=item_feature_m
     )
 
@@ -44,17 +42,23 @@ def main():
     bpr = FBPR(**best_params)
     bpr.fit(X, y, item_feature_m=item_feature_m)
 
-    for path in glob.glob(os.path.join(args.data_dir, "testing*.csv")):
-        print(path)
-        X_test, _, _ = load_data(path, uid_idx, ifd.iid_to_row)
-        test_size = min(X_test.shape[0], args.test_size)
-        X_test = X_test[np.random.choice(X_test.shape[0], test_size, replace=False)]
-        X_test, y_test = sample_negative(X_test)
+    testing_path = get_testing_path(False, data_dir=args.data_dir)
+    X_test, _, _ = load_data(testing_path, uid_idx, ifd.iid_to_row)
+    X_test, y_test = sample_negative(X_test)
 
-        uids = X_test[:, 0].reshape(-1)
-        acc = accuracy_score_avg_by_users(y_test, bpr.predict(X_test), uids)
-        auc = bpr_auc_by_users(y_test, bpr.predict_proba(X_test), uids)
-        logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
+    y_proba = np.array([])
+    y_pred = np.array([])
+    for offset in range(0, X_test.shape[0], args.step):
+        limit = min(offset + args.step, X_test.shape[0])
+        X_test_step = X_test[offset: limit]
+
+        y_proba = np.r_[y_proba, bpr.predict_proba(X_test_step)]
+        y_pred = np.r_[y_pred, bpr.predict(X_test_step)]
+
+    uids = X_test[:, 0].reshape(-1)
+    auc = bpr_auc_by_users(y_test, y_proba, uids)
+    acc = accuracy_score_avg_by_users(y_test, y_pred, uids)
+    logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
 
 
 if __name__ == '__main__':
@@ -68,8 +72,8 @@ if __name__ == '__main__':
     parser.add_argument('-t', dest="tag_csv", help='Path to the csv file with movie tags')
 
     parser.add_argument('--rs', dest="random_state", type=int, default=42, help='Random state. Default: 42')
-    parser.add_argument('-s', dest="test_size", type=int, default=40000,
-                        help='The size of the test. Default: 40000')
+    parser.add_argument('-s', dest="step", type=int, default=40000,
+                        help='The size of the test step. Default: 40000')
     parser.add_argument("--log-level", default='INFO', dest="log_level",
                         choices=['DEBUG', 'INFO', 'WARNINGS', 'ERROR'], help="Logging level")
     args = parser.parse_args()
