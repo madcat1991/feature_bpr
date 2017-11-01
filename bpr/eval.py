@@ -24,7 +24,7 @@ def main():
         "lambda_q": [0.01],
         "learning_rate": [0.01],
         "random_state": [args.random_state],
-        "batch_size": [10000],
+        "batch_size": [30000],
         "n_users": [len(uid_idx)],
         "n_items": [len(iid_idx)]
     }

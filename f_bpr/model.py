@@ -66,6 +66,3 @@ class FBPR(BasePWClassifier):
         saver = tf.train.Saver()
 
         self._graph_important_ops(X, y, training, training_op, loss, y_proba, init, saver)
-
-    def predict(self, X):
-        return np.round(self.predict_proba(X))

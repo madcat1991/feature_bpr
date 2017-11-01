@@ -21,13 +21,13 @@ def main():
     X, y = sample_negative(X)
 
     param_grid = {
-        "n_epochs": [1],
-        "n_factors": [5],
+        "n_epochs": [5],
+        "n_factors": [10],
         "lambda_p": [0.1],
         "lambda_w": [0.1],
-        "learning_rate": [0.001],
+        "learning_rate": [0.01],
         "random_state": [args.random_state],
-        "batch_size": [20000],
+        "batch_size": [30000],
         "n_users": [len(uid_idx)],
         "n_items": [len(ifd.iid_to_row)],
         "n_features": [len(ifd.feature_to_col)]
@@ -38,27 +38,28 @@ def main():
         item_feature_m=item_feature_m
     )
 
-    logging.info("Training final fpw, params: %s", best_params)
+    logging.info("Training final bpr, params: %s", best_params)
     bpr = FBPR(**best_params)
     bpr.fit(X, y, item_feature_m=item_feature_m)
 
-    testing_path = get_testing_path(False, data_dir=args.data_dir)
-    X_test, _, _ = load_data(testing_path, uid_idx, ifd.iid_to_row)
-    X_test, y_test = sample_negative(X_test)
+    for temperature in ["warm", "cold", None]:
+        testing_path = get_testing_path(args.data_dir, temperature)
+        X_test, _, _ = load_data(testing_path, uid_idx, ifd.iid_to_row)
+        X_test, y_test = sample_negative(X_test)
 
-    y_proba = np.array([])
-    y_pred = np.array([])
-    for offset in range(0, X_test.shape[0], args.step):
-        limit = min(offset + args.step, X_test.shape[0])
-        X_test_step = X_test[offset: limit]
+        y_proba = np.array([])
+        y_pred = np.array([])
+        for offset in range(0, X_test.shape[0], args.step):
+            limit = min(offset + args.step, X_test.shape[0])
+            X_test_step = X_test[offset: limit]
 
-        y_proba = np.r_[y_proba, bpr.predict_proba(X_test_step)]
-        y_pred = np.r_[y_pred, bpr.predict(X_test_step)]
+            y_proba = np.r_[y_proba, bpr.predict_proba(X_test_step)]
+            y_pred = np.r_[y_pred, bpr.predict(X_test_step)]
 
-    uids = X_test[:, 0].reshape(-1)
-    auc = bpr_auc_by_users(y_test, y_proba, uids)
-    acc = accuracy_score_avg_by_users(y_test, y_pred, uids)
-    logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
+        uids = X_test[:, 0].reshape(-1)
+        auc = bpr_auc_by_users(y_test, y_proba, uids)
+        acc = accuracy_score_avg_by_users(y_test, y_pred, uids)
+        logging.info("Test: acc=%.3f, auc=%.3f", acc, auc)
 
 
 if __name__ == '__main__':
