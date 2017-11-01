@@ -63,10 +63,10 @@ def get_training_path(data_dir=None):
     return os.path.join(data_dir, name) if data_dir else name
 
 
-def get_testing_path(is_cold, n_obs=None, sim=None, data_dir=None):
+def get_testing_path(data_dir=None, temperature=None, n_obs=None, sim=None):
     name = "testing"
-    if is_cold:
-        name += "_cold"
+    if temperature:
+        name += "_%s" % temperature
     if n_obs is not None:
         name += "_obs_%d" % n_obs
     elif sim is not None:

@@ -79,7 +79,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         self._saver.save(self._session, path)
 
     def predict(self, X):
-        raise NotImplementedError()
+        return np.round(self.predict_proba(X))
 
     def predict_proba(self, X):
         if not self._session:
