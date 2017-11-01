@@ -1,15 +1,16 @@
 import numpy as np
 import tensorflow as tf
+from sklearn.exceptions import NotFittedError
 
 from base.model import BasePWClassifier
 
 
-class DLPWClassifier(BasePWClassifier):
+class DLPW(BasePWClassifier):
     def __init__(self, n_users, n_items, n_features, lambda_ol, lambda_hl, h_layers,
                  n_factors=10, n_epochs=20, batch_size=1000, dropout_rate=None,
                  batch_norm_momentum=None, activation=tf.nn.elu,
                  learning_rate=0.001, random_state=None):
-        super(DLPWClassifier, self).__init__(
+        super(DLPW, self).__init__(
             n_users, n_items, n_factors, n_epochs, batch_size, learning_rate, random_state
         )
         self.n_features = n_features
@@ -109,11 +110,15 @@ class DLPWClassifier(BasePWClassifier):
         # Make the important operations available easily through instance variables
         self._graph_important_ops(X, y, training, training_op, loss, y_proba, init, saver)
 
-    def predict(self, X):
-        return np.argmax(self.predict_proba(X), axis=1)
+    def predict_proba(self, X):
+        if not self._session:
+            raise NotFittedError("This %s instance is not fitted yet" % self.__class__.__name__)
+        with self._session.as_default():
+            _y_proba = self._y_proba.eval(feed_dict={self._X: X})
+            return _y_proba[:, 1].reshape(-1)
 
 
-class DLSubPWClassifier(DLPWClassifier):
+class DLSubPW(DLPW):
     def _prerpare_input(self, p_u, iids_i_features, iids_j_features):
         delta_f = tf.subtract(iids_i_features, iids_j_features, "delta_f")
         return tf.concat([p_u, delta_f], 1)
