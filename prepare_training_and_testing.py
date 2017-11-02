@@ -11,9 +11,9 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import normalize
 
-from common import get_training_path, get_testing_path
 from data_tools.movielens import get_ratings_df
-from data_tools.provider import get_item_feature_data
+from data_tools.item_provider import get_item_feature_data
+from data_tools.pairwise import get_training_path, get_testing_path
 
 TEMPERATURE_COLD = 'cold'
 TEMPERATURE_WARM = 'warm'

@@ -106,3 +106,7 @@ def get_item_feature_data(pkl_data, movie_csv=None, tag_csv=None):
         ifd.save(pkl_data)
     logging.info("Item-feature data: %s", ifd.info())
     return ifd
+
+
+def get_ifd_path(data_dir=None, name="ifd.pkl"):
+    return os.path.join(data_dir, name) if data_dir else name

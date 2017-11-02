@@ -7,8 +7,9 @@ import sys
 
 import numpy as np
 
-from common import load_data, sample_negative, find_best_params, get_training_path, get_testing_path
-from data_tools.provider import get_item_feature_data
+from common import sample_negative, find_best_params
+from data_tools.item_provider import get_item_feature_data
+from data_tools.pairwise import load_data, get_training_path, get_testing_path
 from f_bpr.model import FBPR
 from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
 

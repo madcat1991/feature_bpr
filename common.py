@@ -1,11 +1,8 @@
 import logging
-import os
 
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import ParameterGrid, ShuffleSplit
 
-from data_tools.pairwise import normailze_uids_and_iids
 from metrics import bpr_auc_by_users
 
 
@@ -46,30 +43,3 @@ def sample_negative(X, neg_p=0.5):
     y = np.ones(X.shape[0])
     y[idx] = 0
     return X, y
-
-
-def load_data(csv_path, uid_idx=None, iid_idx=None):
-    logging.info("Loading pairwise data from: %s", csv_path)
-    pw_df = pd.read_csv(csv_path)
-    if uid_idx and iid_idx:
-        pw_df, _, _ = normailze_uids_and_iids(pw_df, uid_idx, iid_idx)
-    else:
-        pw_df, uid_idx, iid_idx = normailze_uids_and_iids(pw_df)
-    return pw_df.values, uid_idx, iid_idx
-
-
-def get_training_path(data_dir=None):
-    name = "training.csv"
-    return os.path.join(data_dir, name) if data_dir else name
-
-
-def get_testing_path(data_dir=None, temperature=None, n_obs=None, sim=None):
-    name = "testing"
-    if temperature:
-        name += "_%s" % temperature
-    if n_obs is not None:
-        name += "_obs_%d" % n_obs
-    elif sim is not None:
-        name += "_sim_%d" % int(sim * 100)
-    name = "%s.csv" % name
-    return os.path.join(data_dir, name) if data_dir else name

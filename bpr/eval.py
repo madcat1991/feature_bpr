@@ -8,7 +8,8 @@ import sys
 
 import numpy as np
 
-from common import find_best_params, sample_negative, load_data, get_testing_path, get_training_path
+from common import find_best_params, sample_negative
+from data_tools.pairwise import get_training_path, load_data, get_testing_path
 from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
 from bpr.model import BPR
 
