@@ -46,7 +46,7 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
         # Make the important operations available easily through instance variables
         self._graph_important_ops(X, y, training, None, None, None, init, saver)
 
-    def fit(self, X, y, **kwargs):
+    def fit(self, X, y, X_valid=None, y_valid=None, **kwargs):
         self.close_session()
 
         self._graph = tf.Graph()
@@ -66,12 +66,16 @@ class BasePWClassifier(BaseEstimator, ClassifierMixin):
                         feed_dict={self._X: X_batch, self._y: y_batch, self._training: True}
                     )
 
-                uids = X_batch[:, 0].reshape(-1)
-                acc = accuracy_score_avg_by_users(y_batch, self.predict(X_batch), uids)
-                auc = bpr_auc_by_users(y_batch, self.predict_proba(X_batch), uids)
-                loss = sess.run(self._loss, feed_dict={self._X: X_batch, self._y: y_batch})
+                if X_valid is None:
+                    X_valid = X_batch
+                    y_valid = y_batch
+
+                uids = X_valid[:, 0].reshape(-1)
+                acc = accuracy_score_avg_by_users(y_valid, self.predict(X_valid), uids)
+                auc = bpr_auc_by_users(y_valid, self.predict_proba(X_valid), uids)
+                loss = sess.run(self._loss, feed_dict={self._X: X_valid, self._y: y_valid})
                 print(
-                    "%3s. Last training batch: loss=%.3f, acc=%.3f, auc=%.3f" %
+                    "%3s. loss=%.3f, acc=%.3f, auc=%.3f" %
                     (epoch, loss, acc, auc)
                 )
 
