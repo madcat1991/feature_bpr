@@ -19,9 +19,9 @@ def find_best_params(X, y, est_class, param_grid, val_size=40000, n_splits=1, ra
         splitter = ShuffleSplit(n_splits, val_size, random_state=random_state)
         aucs = []
         for train_ids, valid_ids in splitter.split(X):
-            estimator.fit(X[train_ids], y[train_ids], **fit_kwargs)
-
             X_valid, y_valid = X[valid_ids], y[valid_ids]
+            estimator.fit(X[train_ids], y[train_ids], X_valid, y_valid, **fit_kwargs)
+
             aucs.append(
                 bpr_auc_by_users(y_valid, estimator.predict_proba(X_valid), X_valid[:, 0].reshape(-1))
             )

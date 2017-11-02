@@ -57,7 +57,9 @@ class FBPR(BasePWClassifier):
         y_proba = tf.nn.sigmoid(logits, name="y_proba")
 
         x_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=logits)
-        loss = tf.reduce_sum(x_entropy, name="loss")
+        base_loss = tf.reduce_sum(x_entropy)
+        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+        loss = tf.add_n([base_loss] + reg_losses, name="loss")
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         training_op = optimizer.minimize(loss)
