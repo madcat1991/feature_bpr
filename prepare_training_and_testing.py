@@ -59,7 +59,7 @@ def get_test_movie_obs(training_df, testing_df):
 
 def get_test_movie_sims(training_df, testing_df, ifd, step=1000):
     obs_per_tr_iids = training_df.movieId.value_counts()
-    tr_m = normalize(ifd.get_items_matrix(obs_per_tr_iids.index))
+    tr_m = normalize(ifd.get_objs_matrix(obs_per_tr_iids.index))
 
     if args.temperature == TEMPERATURE_COLD:
         ts_iids = testing_df[~testing_df.movieId.isin(obs_per_tr_iids.index)].movieId.unique()
@@ -69,7 +69,7 @@ def get_test_movie_sims(training_df, testing_df, ifd, step=1000):
         ts_iids = testing_df.movieId.unique()
 
     logging.info("Searching similarity for each %s test items", ts_iids.size)
-    ts_m = normalize(ifd.get_items_matrix(ts_iids))
+    ts_m = normalize(ifd.get_objs_matrix(ts_iids))
 
     sims = np.array([])
     for offset in range(0, ts_iids.size, step):

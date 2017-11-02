@@ -1,41 +1,19 @@
 import logging
 import os
-import pickle
 
-from scipy.io import mmwrite, mmread
 from scipy.sparse import csr_matrix
 
 from data_tools.movielens import get_movies_df, get_tags_df
+from data_tools.obj_provider import ObjFeatureData
 
 
-class ItemFeatureData(object):
-    def __init__(self, m, iid_to_row, feature_to_col):
-        self.m = m
-        self.iid_to_row = iid_to_row
-        self.feature_to_col = feature_to_col
+class ItemFeatureData(ObjFeatureData):
+    @classmethod
+    def create(cls, movie_csv_path, tag_csv_path):
+        logging.info("Creating %s", cls.__class__)
 
-    def info(self):
-        return {
-            "nnz": self.m.nnz,
-            "density": self.m.nnz / (self.m.shape[0] * self.m.shape[1]),
-            "shape": self.m.shape
-        }
-
-    def get_item_vector(self, item_id, dense=False):
-        item_vec = self.m[self.iid_to_row[item_id]]
-        if dense:
-            item_vec = item_vec.todense().reshape(-1)
-        return item_vec
-
-    def get_items_matrix(self, items_ids):
-        row_ids = [self.iid_to_row[item_id] for item_id in items_ids]
-        return self.m[row_ids]
-
-    @staticmethod
-    def create(movie_csv_path, tag_csv_path):
-        logging.info("Creating item-feature data")
-        feature_to_col = {}
         iid_to_row = {}
+        feature_to_col = {}
 
         cols = []
         rows = []
@@ -66,44 +44,17 @@ class ItemFeatureData(object):
 
         m = csr_matrix((data, (rows, cols)))
         logging.info("Item-feature data has been created")
-        return ItemFeatureData(m, iid_to_row, feature_to_col)
-
-    def save(self, pkl_path):
-        logging.info("Dumping item-feature data")
-        data = {
-            "iid_to_row": self.iid_to_row,
-            "feature_to_col": self.feature_to_col,
-        }
-
-        with open(pkl_path, "wb") as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-        logging.info("Pickle data has been dumped")
-
-        matrix_path = pkl_path + ".mtx"
-        mmwrite(matrix_path, self.m)
-        logging.info("Item-feature matrix has been dumped")
-
-    @staticmethod
-    def load(pkl_path):
-        logging.info("Loading item-feature data")
-        with open(pkl_path, "rb") as f:
-            data = pickle.load(f)
-        logging.info("Pickle data has been loaded")
-
-        matrix_path = pkl_path + ".mtx"
-        m = mmread(matrix_path).tocsr()
-        logging.info("Item-feature matrix has been loaded")
-        return ItemFeatureData(m, **data)
+        return cls(m, iid_to_row, feature_to_col)
 
 
-def get_item_feature_data(pkl_data, movie_csv=None, tag_csv=None):
-    if os.path.exists(pkl_data):
-        ifd = ItemFeatureData.load(pkl_data)
+def get_item_feature_data(ifd_path, movie_csv=None, tag_csv=None):
+    if os.path.exists(ifd_path):
+        ifd = ItemFeatureData.load(ifd_path)
     elif movie_csv is None or tag_csv is None:
         raise Exception("There is no dumped item-feature data, please specify movie_csv and tag_csv")
     else:
         ifd = ItemFeatureData.create(movie_csv, tag_csv)
-        ifd.save(pkl_data)
+        ifd.save(ifd_path)
     logging.info("Item-feature data: %s", ifd.info())
     return ifd
 
