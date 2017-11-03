@@ -8,9 +8,13 @@ from data_tools.obj_provider import ObjFeatureData
 
 
 class ItemFeatureData(ObjFeatureData):
+    @property
+    def n_items(self):
+        return len(self.obj_to_row)
+
     @classmethod
     def create(cls, movie_csv_path, tag_csv_path):
-        logging.info("Creating %s", cls.__class__)
+        logging.info("Creating %s", cls)
 
         iid_to_row = {}
         feature_to_col = {}
@@ -43,12 +47,13 @@ class ItemFeatureData(ObjFeatureData):
             data.append(float(t.relevance))
 
         m = csr_matrix((data, (rows, cols)))
-        logging.info("Item-feature data has been created")
-        return cls(m, iid_to_row, feature_to_col)
+        data = cls(m, iid_to_row, feature_to_col)
+        logging.info("Item-feature data has been created: %s", data.info())
+        return data
 
 
-def get_item_feature_data(ifd_path, movie_csv=None, tag_csv=None):
-    if os.path.exists(ifd_path):
+def get_item_feature_data(ifd_path, movie_csv=None, tag_csv=None, rebuild=False):
+    if os.path.exists(ifd_path) and not rebuild:
         ifd = ItemFeatureData.load(ifd_path)
     elif movie_csv is None or tag_csv is None:
         raise Exception("There is no dumped item-feature data, please specify movie_csv and tag_csv")

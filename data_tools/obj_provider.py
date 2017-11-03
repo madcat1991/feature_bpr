@@ -10,6 +10,14 @@ class ObjFeatureData(object):
         self.obj_to_row = obj_to_row
         self.feature_to_col = feature_to_col
 
+    @property
+    def n_objs(self):
+        return len(self.obj_to_row)
+
+    @property
+    def n_features(self):
+        return len(self.feature_to_col)
+
     def info(self):
         return {
             "nnz": self.m.nnz,
@@ -31,29 +39,43 @@ class ObjFeatureData(object):
     def create(cls, *args, **kwargs):
         return ObjFeatureData(None, {}, {})
 
-    def save(self, pkl_path):
-        logging.info("Dumping %s", self.__class__)
+    def _save_pkl(self, pkl_path):
         data = {
             "obj_to_row": self.obj_to_row,
             "feature_to_col": self.feature_to_col,
         }
-
         with open(pkl_path, "wb") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
         logging.info("Dict data has been dumped")
 
-        matrix_path = pkl_path + ".mtx"
+    def _save_matrix(self, matrix_path):
         mmwrite(matrix_path, self.m)
         logging.info("Matrix has been dumped")
 
+    def save(self, pkl_path):
+        logging.info("Dumping %s", self.__class__)
+        self._save_pkl(pkl_path)
+        matrix_path = pkl_path + ".mtx"
+        self._save_matrix(matrix_path)
+
     @classmethod
-    def load(cls, pkl_path):
-        logging.info("Loading %s", cls.__class__)
+    def _load_data(cls, pkl_path):
         with open(pkl_path, "rb") as f:
             data = pickle.load(f)
         logging.info("Pickle data has been loaded")
+        return data
 
-        matrix_path = pkl_path + ".mtx"
+    @classmethod
+    def _load_matrix(cls, matrix_path):
         m = mmread(matrix_path).tocsr()
+        logging.info("Matrix has been loaded")
+        return m
+
+    @classmethod
+    def load(cls, pkl_path):
+        logging.info("Loading %s", cls)
+        data = cls._load_data(pkl_path)
+        matrix_path = pkl_path + ".mtx"
+        m = cls._load_matrix(matrix_path)
         logging.info("Matrix has been loaded")
         return cls(m, **data)

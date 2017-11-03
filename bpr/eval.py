@@ -62,7 +62,6 @@ if __name__ == '__main__':
     parser.add_argument('-p', default="data", dest="data_dir",
                         help='Path to the data directory. Default: data/')
     parser.add_argument('--rs', dest="random_state", type=int, default=42, help='Random state. Default: 42')
-
     parser.add_argument('-s', dest="step", type=int, default=40000,
                         help='The size of the test step. Default: 40000')
     parser.add_argument("--log-level", default='INFO', dest="log_level",

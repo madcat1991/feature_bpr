@@ -12,8 +12,9 @@ import pandas as pd
 from sklearn.preprocessing import normalize
 
 from data_tools.movielens import get_ratings_df
-from data_tools.item_provider import get_item_feature_data
+from data_tools.item_provider import get_item_feature_data, get_ifd_path
 from data_tools.pairwise import get_training_path, get_testing_path
+from data_tools.user_provider import get_user_feature_data, get_ufd_path
 
 TEMPERATURE_COLD = 'cold'
 TEMPERATURE_WARM = 'warm'
@@ -120,19 +121,25 @@ def iter_pairwise_data(df, movie_ids=None):
 def main():
     logging.info("Start")
 
-    training_df, testing_df = get_training_and_testing_dfs(args.rating_csv, args.split_q)
-    create_and_store_pairwise_data(training_df, get_training_path(args.data_dir))
+    rating_tr_df, rating_ts_df = get_training_and_testing_dfs(args.rating_csv, args.split_q)
 
+    # preparing feature data
+    ifd = get_item_feature_data(get_ifd_path(args.data_dir), args.movie_csv, args.tag_csv, args.rebuild_ifd)
+    if args.rebuild_ufd:
+        # we don't need it in other parts of the code
+        get_user_feature_data(get_ufd_path(args.data_dir), rating_tr_df, ifd, args.rebuild_ufd)
+
+    # preparing pairwise data
+    create_and_store_pairwise_data(rating_tr_df, get_training_path(args.data_dir))
     if args.n_obs:
-        obs_per_test_movie = get_test_movie_obs(training_df, testing_df)
+        obs_per_test_movie = get_test_movie_obs(rating_tr_df, rating_ts_df)
         for n_obs in args.n_obs:
             logging.info("Collecting testing data for movies with %s observations", n_obs)
             movie_ids = set(obs_per_test_movie[obs_per_test_movie == n_obs].index)
             path = get_testing_path(args.data_dir, args.temperature, n_obs=n_obs)
-            create_and_store_pairwise_data(testing_df, path, movie_ids)
+            create_and_store_pairwise_data(rating_ts_df, path, movie_ids)
     elif args.sims:
-        ifd = get_item_feature_data(args.pkl_data)
-        sim_per_test_movie = get_test_movie_sims(training_df, testing_df, ifd)
+        sim_per_test_movie = get_test_movie_sims(rating_tr_df, rating_ts_df, ifd)
         for sim in args.sims:
             logging.info("Collecting testing data for movies with %.2f similarity", sim)
 
@@ -142,27 +149,31 @@ def main():
 
             movie_ids = set(sim_per_test_movie.index[idx])
             path = get_testing_path(args.data_dir, args.temperature, sim=sim)
-            create_and_store_pairwise_data(testing_df, path, movie_ids)
+            create_and_store_pairwise_data(rating_ts_df, path, movie_ids)
     else:
         if args.temperature == TEMPERATURE_COLD:
-            movie_ids = set(testing_df[~testing_df.movieId.isin(training_df.movieId)].movieId)
+            movie_ids = set(rating_ts_df[~rating_ts_df.movieId.isin(rating_tr_df.movieId)].movieId)
         elif args.temperature == TEMPERATURE_WARM:
-            movie_ids = set(testing_df[testing_df.movieId.isin(training_df.movieId)].movieId)
+            movie_ids = set(rating_ts_df[rating_ts_df.movieId.isin(rating_tr_df.movieId)].movieId)
         else:
-            movie_ids = set(testing_df.movieId)
+            movie_ids = set(rating_ts_df.movieId)
 
         path = get_testing_path(args.data_dir, args.temperature)
-        create_and_store_pairwise_data(testing_df, path, movie_ids)
+        create_and_store_pairwise_data(rating_ts_df, path, movie_ids)
 
     logging.info("Stop")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-r', required=True, dest="rating_csv",
-                        help='Path to a csv file with ratings')
-    parser.add_argument('-d', dest="pkl_data", default="ifd.pkl",
-                        help='Path to the *.pkl file with the item-feature data. Default: ifd.pkl')
+    parser.add_argument('-r', required=True, dest="rating_csv", help='Path to a csv file with ratings')
+    parser.add_argument('-m', dest="movie_csv", help='Path to the csv file with movies')
+    parser.add_argument('-g', dest="tag_csv", help='Path to the csv file with movie tags')
+    parser.add_argument('--ifd', dest='rebuild_ifd', action='store_true',
+                        help="Rebuild item-feature data")
+    parser.add_argument('--ufd', dest='rebuild_ufd', action='store_true',
+                        help="Rebuild user-feature data")
+
     parser.add_argument('-p', default="data", dest="data_dir",
                         help='Path to the data directory to save results. Default: data/')
 
@@ -177,12 +188,6 @@ if __name__ == '__main__':
                              'If specified, the testing data is generated based on similarities')
     parser.add_argument('-t', dest="temperature", default=None, choices=TEMPERATURES,
                         help='The type of test items. Default: any')
-
-    parser.add_argument('-c', dest="is_cold_item", action='store_true',
-                        help='Remove all items observed in the training set from testing set')
-
-    parser.add_argument('-n', default=1000, dest="n_items", type=int,
-                        help='The number of cold-start items in the test set. Default: 1000')
 
     parser.add_argument("--log-level", default='INFO', dest="log_level",
                         choices=['DEBUG', 'INFO', 'WARNINGS', 'ERROR'], help="Logging level")

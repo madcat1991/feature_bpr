@@ -8,17 +8,17 @@ import sys
 import numpy as np
 
 from common import sample_negative, find_best_params
-from data_tools.item_provider import get_item_feature_data
+from data_tools.item_provider import get_item_feature_data, get_ifd_path
 from data_tools.pairwise import load_data, get_training_path, get_testing_path
 from f_bpr.model import FBPR
 from metrics import accuracy_score_avg_by_users, bpr_auc_by_users
 
 
 def main():
-    ifd = get_item_feature_data(args.pkl_data, args.movie_csv, args.tag_csv)
+    ifd = get_item_feature_data(get_ifd_path(args.data_dir))
     item_feature_m = ifd.m.todense()
 
-    X, uid_idx, _ = load_data(get_training_path(args.data_dir), iid_idx=ifd.iid_to_row)
+    X, uid_idx, iid_idx = load_data(get_training_path(args.data_dir), iid_idx=ifd.obj_to_row)
     X, y = sample_negative(X)
 
     param_grid = {
@@ -30,8 +30,8 @@ def main():
         "random_state": [args.random_state],
         "batch_size": [50000],
         "n_users": [len(uid_idx)],
-        "n_items": [len(ifd.iid_to_row)],
-        "n_features": [len(ifd.feature_to_col)]
+        "n_items": [ifd.n_items],
+        "n_features": [ifd.n_features]
     }
 
     best_params = find_best_params(
@@ -45,7 +45,7 @@ def main():
 
     for temperature in ["warm", "cold", None]:
         testing_path = get_testing_path(args.data_dir, temperature)
-        X_test, _, _ = load_data(testing_path, uid_idx, ifd.iid_to_row)
+        X_test, _, _ = load_data(testing_path, uid_idx, iid_idx)
         X_test, y_test = sample_negative(X_test)
 
         y_proba = np.array([])
@@ -67,12 +67,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-p', default="data", dest="data_dir",
                         help='Path to the data directory. Default: data/')
-
-    parser.add_argument('-d', dest="pkl_data", default="ifd.pkl",
-                        help='Path to the *.pkl file with the item-feature data. Default: ifd.pkl')
-    parser.add_argument('-m', dest="movie_csv", help='Path to the csv file with movies')
-    parser.add_argument('-t', dest="tag_csv", help='Path to the csv file with movie tags')
-
     parser.add_argument('--rs', dest="random_state", type=int, default=42, help='Random state. Default: 42')
     parser.add_argument('-s', dest="step", type=int, default=40000,
                         help='The size of the test step. Default: 40000')
